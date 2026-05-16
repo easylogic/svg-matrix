@@ -8,6 +8,7 @@ export const SVG_CAPABILITY_MAP = [
   { topic: "filters", svg: "filter, fe*", repo: "svg-matrix", lesson: "031, 035–039" },
   { topic: "markers", svg: "marker, marker-start/end", repo: "svg-matrix", lesson: "064" },
   { topic: "text on path", svg: "text, textPath", repo: "svg-matrix", lesson: "063" },
+  { topic: "SVG animation", svg: "animate, animateMotion, dashoffset", repo: "svg-matrix", lesson: "088–094" },
   { topic: "CSS overlay", svg: "mask-image, clip-path", repo: "css-matrix", lesson: "—" },
   { topic: "GPU rasterization", svg: "— (flatten → mesh)", repo: "webgl-webgpu-matrix", lesson: "—" }
 ];
