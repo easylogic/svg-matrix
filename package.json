@@ -1,0 +1,17 @@
+{
+  "name": "svg-matrix-course",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @svg-matrix-course/site build",
+    "dev": "pnpm --filter @svg-matrix-course/site dev",
+    "preview": "pnpm --filter @svg-matrix-course/site preview",
+    "serve:lessons": "node scripts/serve.mjs packages 4175",
+    "test": "node --test packages/svg-matrix-core/test/*.test.mjs"
+  }
+}
