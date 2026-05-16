@@ -172,3 +172,13 @@ SVG를 **렌더링·편집·변환의 1급 모델**로 다루는 독립 강의�
 ## Part 22. Math topic map
 
 - [087. SVG 수학 주제 지도](./lesson-087.md)
+
+## Part 23. SVG animation
+
+- [088. SMIL — animate 속성](./lesson-088.md)
+- [089. SMIL — animateTransform](./lesson-089.md)
+- [090. SMIL — animateMotion](./lesson-090.md)
+- [091. stroke dash draw-on](./lesson-091.md)
+- [092. CSS offset-path motion](./lesson-092.md)
+- [093. path morph](./lesson-093.md)
+- [094. JS motion along path](./lesson-094.md)

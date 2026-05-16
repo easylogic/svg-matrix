@@ -1281,8 +1281,20 @@ export {
   strokeDashIntervals,
   subpathsToSegments,
   svgArcCenterParameters,
-  updateSubpathHandle
+  updateSubpathHandle,
+  morphPathDLinear,
+  sampleMotionAlongPath
 } from "./engine.js";
+
+export {
+  SVG_ANIMATION_TOPIC_MAP,
+  buildAnimateMarkup,
+  buildAnimateMotionMarkup,
+  buildAnimateTransformMarkup,
+  buildAnimatedElementMarkup,
+  buildOffsetPathMotionCss,
+  strokeDashDrawKeyframes
+} from "./animation.js";
 
 export {
   CRISP_ICON_STROKES,

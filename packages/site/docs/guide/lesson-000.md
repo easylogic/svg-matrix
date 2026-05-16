@@ -67,7 +67,7 @@ Part 0~14에서 다루는 범위를 미리 보면:
 - **스프라이트** — `<symbol>` + `<use>`, 아이콘 폰트 대체
 - **배경** — `background-image: url(...svg)` (css-matrix와 겹침)
 - **편집기 export** — Figma, Illustrator, Inkscape
-- **애니메이션** — CSS / SMIL로 `stroke-dashoffset`, morph (심화)
+- **애니메이션** — [Part 23](./lesson-088.md) SMIL·dash draw·offset-path·morph (088–094)
 
 ## 편집기를 만들 때의 위치
 

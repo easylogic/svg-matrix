@@ -1,3 +1,4 @@
+import { ANIMATION_DEMO_MOUNTERS } from "./animation-demos.js";
 import { GEOMETRY_DEMO_MOUNTERS } from "./geometry-demos.js";
 import {
   bboxOfCubicBezier,
@@ -2843,6 +2844,11 @@ function mountDemo(lesson, canvas, toolbar, readout) {
       mountArcFlattenUnifiedDemo(canvas, toolbar, readout);
       break;
     default: {
+      const animationDemo = ANIMATION_DEMO_MOUNTERS[lesson.demo];
+      if (animationDemo) {
+        animationDemo(canvas, toolbar, readout);
+        break;
+      }
       const geometryDemo = GEOMETRY_DEMO_MOUNTERS[lesson.demo];
       if (geometryDemo) {
         geometryDemo(canvas, toolbar, readout);

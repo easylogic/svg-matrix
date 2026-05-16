@@ -962,6 +962,62 @@ export const LESSONS = [
     goal: "Parts 15–22 수학 강의 전체를 한 표로 정리한다.",
     demo: "geom-math-map",
     takeaways: ["SVG_MATH_TOPIC_MAP.", "068–087.", "css-matrix / webgl 분담."]
+  },
+  {
+    id: "088",
+    part: "Part 23. SVG animation",
+    title: "SMIL — animate 속성",
+    goal: "SVG SMIL <animate>로 attribute를 시간에 따라 보간한다.",
+    demo: "anim-smil-attribute",
+    takeaways: ["buildAnimateMarkup.", "attributeName/from/to/dur.", "SMIL vs CSS/WAAPI."]
+  },
+  {
+    id: "089",
+    part: "Part 23. SVG animation",
+    title: "SMIL — animateTransform",
+    goal: "transform을 SMIL로 회전·이동·스케일 애니메이션한다.",
+    demo: "anim-smil-transform",
+    takeaways: ["buildAnimateTransformMarkup.", "additive=sum.", "g transform과 조합."]
+  },
+  {
+    id: "090",
+    part: "Part 23. SVG animation",
+    title: "SMIL — animateMotion",
+    goal: "path를 따라 객체를 이동시키는 animateMotion과 mpath를 본다.",
+    demo: "anim-smil-motion",
+    takeaways: ["buildAnimateMotionMarkup.", "rotate=auto.", "017–018 arc length."]
+  },
+  {
+    id: "091",
+    part: "Part 23. SVG animation",
+    title: "stroke dash draw-on",
+    goal: "pathLength·dasharray·dashoffset으로 선이 그려지는 애니를 만든다.",
+    demo: "anim-dash-draw",
+    takeaways: ["strokeDashDrawKeyframes.", "pathLength 속성.", "051 dash."]
+  },
+  {
+    id: "092",
+    part: "Part 23. SVG animation",
+    title: "CSS offset-path motion",
+    goal: "CSS offset-path/offset-distance로 SVG path motion을 구현한다.",
+    demo: "anim-css-motion",
+    takeaways: ["buildOffsetPathMotionCss.", "SMIL 대안.", "css-matrix 050."]
+  },
+  {
+    id: "093",
+    part: "Part 23. SVG animation",
+    title: "path morph",
+    goal: "같은 topology의 path d를 선형 보간해 morph한다.",
+    demo: "anim-path-morph",
+    takeaways: ["morphPathDLinear.", "compatible segment list.", "shape tween 한계."]
+  },
+  {
+    id: "094",
+    part: "Part 23. SVG animation",
+    title: "JS motion along path",
+    goal: "sampleMotionAlongPath로 rAF 엔진·편집기 preview를 만든다.",
+    demo: "anim-js-motion",
+    takeaways: ["sampleMotionAlongPath.", "progress by length.", "css-matrix keyframe B."]
   }
 ];
 

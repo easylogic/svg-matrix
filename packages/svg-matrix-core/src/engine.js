@@ -9,6 +9,8 @@ import {
   parsePathD,
   pathDFromSegments,
   pathFromD,
+  pathLength,
+  pointAtPathLength,
   polylineLength,
   quadraticBezierPoint,
   scale,
@@ -301,5 +303,74 @@ export function compareFlattenMethods(segments, options = {}) {
     adaptiveCount: adaptive.length,
     uniformLength: polylineLength(uniform),
     adaptiveLength: polylineLength(adaptive)
+  };
+}
+
+function lerpScalar(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function lerpPt(a, b, t) {
+  return { x: lerpScalar(a.x, b.x, t), y: lerpScalar(a.y, b.y, t) };
+}
+
+function lerpSegmentMorph(segA, segB, t) {
+  if (segA.type !== segB.type) return segA;
+  if (segA.type === "M") return { type: "M", point: lerpPt(segA.point, segB.point, t) };
+  if (segA.type === "L") {
+    return { type: "L", from: lerpPt(segA.from, segB.from, t), to: lerpPt(segA.to, segB.to, t) };
+  }
+  if (segA.type === "C") {
+    return {
+      type: "C",
+      from: lerpPt(segA.from, segB.from, t),
+      cp1: lerpPt(segA.cp1, segB.cp1, t),
+      cp2: lerpPt(segA.cp2, segB.cp2, t),
+      to: lerpPt(segA.to, segB.to, t)
+    };
+  }
+  if (segA.type === "Q") {
+    return {
+      type: "Q",
+      from: lerpPt(segA.from, segB.from, t),
+      cp: lerpPt(segA.cp, segB.cp, t),
+      to: lerpPt(segA.to, segB.to, t)
+    };
+  }
+  return segA;
+}
+
+/** Morph between paths with identical segment command lists. */
+export function morphPathDLinear(dFrom, dTo, t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  const segsA = parsePathD(dFrom);
+  const segsB = parsePathD(dTo);
+  if (segsA.length !== segsB.length) {
+    return { compatible: false, d: clamped < 0.5 ? dFrom : dTo, t: clamped };
+  }
+  for (let i = 0; i < segsA.length; i += 1) {
+    if (segsA[i].type !== segsB[i].type) {
+      return { compatible: false, d: clamped < 0.5 ? dFrom : dTo, t: clamped };
+    }
+  }
+  const morphed = segsA.map((seg, index) => lerpSegmentMorph(seg, segsB[index], clamped));
+  return { compatible: true, d: pathDFromSegments(morphed), t: clamped };
+}
+
+/** progress ∈ [0,1] by arc length — JS motion engine helper */
+export function sampleMotionAlongPath(segments, progress, options = {}) {
+  const total = pathLength(segments, options);
+  if (total <= 0) {
+    return { point: { x: 0, y: 0 }, tangent: { x: 1, y: 0 }, distance: 0, progress: 0, totalLength: 0 };
+  }
+  const p = Math.min(1, Math.max(0, progress));
+  const distance = p * total;
+  const sample = pointAtPathLength(segments, distance, options);
+  return {
+    point: sample.point,
+    tangent: sample.tangent,
+    distance,
+    progress: p,
+    totalLength: total
   };
 }
