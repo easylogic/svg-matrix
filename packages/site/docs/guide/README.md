@@ -6,10 +6,12 @@ title: "강의 구성"
 
 SVG를 **렌더링·편집·변환의 1급 모델**로 다루는 독립 강의입니다. 전체 로드맵: [ROADMAP.md](./ROADMAP.md) · Figma filter 표: [figma-filter-mapping.md](./figma-filter-mapping.md)
 
-## Part 0. SVG coordinate systems
+## Part 0. SVG 기초
 
+- [000. SVG란 무엇인가](./lesson-000.md)
 - [001. viewBox와 user space](./lesson-001.md)
 - [002. transform attribute와 matrix](./lesson-002.md)
+- [067. SVG 문서 구조와 기본 도형](./lesson-067.md) — path 들어가기 전
 
 ## Part 1. Path grammar
 
@@ -126,3 +128,47 @@ SVG를 **렌더링·편집·변환의 1급 모델**로 다루는 독립 강의�
 - [063. text · textPath](./lesson-063.md)
 - [064. paint-order · opacity · filters](./lesson-064.md)
 - [065. arc flatten 통합](./lesson-065.md)
+
+## Part 15. Curve calculus
+
+- [068. de Casteljau subdivision](./lesson-068.md)
+- [069. flatness와 chord error](./lesson-069.md)
+- [070. 곡률 κ와 법선](./lesson-070.md)
+- [071. arc center parameterization](./lesson-071.md)
+- [072. G¹ smooth — S와 T](./lesson-072.md)
+- [073. shoelace signed area](./lesson-073.md)
+
+## Part 16. Intersection & proximity
+
+- [074. segment intersection](./lesson-074.md)
+- [075. line ∩ cubic](./lesson-075.md)
+- [076. closest point on curve](./lesson-076.md)
+
+## Part 17. Offset curves
+
+- [077. normal offset sampling](./lesson-077.md)
+- [078. offset cusps](./lesson-078.md)
+
+## Part 18. Transform algebra
+
+- [079. affine inverse & decompose](./lesson-079.md)
+- [080. transform path vs group](./lesson-080.md)
+
+## Part 19. Rational curves
+
+- [081. circle as cubic — κ constant](./lesson-081.md)
+- [082. rational curves & exact arcs](./lesson-082.md)
+
+## Part 20. Tessellation & pixels
+
+- [083. convex triangulation](./lesson-083.md)
+- [084. evenodd parity → pixels](./lesson-084.md)
+
+## Part 21. Compositing math
+
+- [085. Gaussian blur kernel](./lesson-085.md)
+- [086. Porter–Duff & premultiplied α](./lesson-086.md)
+
+## Part 22. Math topic map
+
+- [087. SVG 수학 주제 지도](./lesson-087.md)

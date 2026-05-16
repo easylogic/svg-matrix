@@ -338,6 +338,167 @@ export function cubicBezierTangent(p0, p1, p2, p3, t) {
   });
 }
 
+/** 1D cubic on t∈[0,1]: B(t) = a·t³ + b·t² + c·t + d */
+export function cubicBezierPolynomialCoeffs(p0, p1, p2, p3) {
+  return {
+    a: -p0 + 3 * p1 - 3 * p2 + p3,
+    b: 3 * p0 - 6 * p1 + 3 * p2,
+    c: -3 * p0 + 3 * p1,
+    d: p0
+  };
+}
+
+/** 1D quadratic: B(t) = a·t² + b·t + c */
+export function quadraticBezierPolynomialCoeffs(p0, p1, p2) {
+  return {
+    a: p0 - 2 * p1 + p2,
+    b: 2 * p1 - 2 * p0,
+    c: p0
+  };
+}
+
+export function evalCubicPolynomial(coeffs, t) {
+  const { a, b, c, d } = coeffs;
+  return ((a * t + b) * t + c) * t + d;
+}
+
+export function evalQuadraticPolynomial(coeffs, t) {
+  const { a, b, c } = coeffs;
+  return (a * t + b) * t + c;
+}
+
+function quadraticRootsInUnitInterval(quadA, quadB, quadC) {
+  const roots = [];
+  if (Math.abs(quadA) < EPSILON) {
+    if (Math.abs(quadB) < EPSILON) return roots;
+    const t = -quadC / quadB;
+    if (t > EPSILON && t < 1 - EPSILON) roots.push(t);
+    return roots;
+  }
+  const discriminant = quadB * quadB - 4 * quadA * quadC;
+  if (discriminant < 0) return roots;
+  const sqrt = Math.sqrt(discriminant);
+  const denom = 2 * quadA;
+  for (const root of [(-quadB - sqrt) / denom, (-quadB + sqrt) / denom]) {
+    if (root > EPSILON && root < 1 - EPSILON) roots.push(root);
+  }
+  return roots;
+}
+
+/** t where B′(t)=0 on one axis, always including endpoints 0 and 1. */
+export function cubicBezierExtremaTimes1D(p0, p1, p2, p3) {
+  const { a, b, c } = cubicBezierPolynomialCoeffs(p0, p1, p2, p3);
+  return [0, 1, ...quadraticRootsInUnitInterval(3 * a, 2 * b, c)];
+}
+
+export function quadraticBezierExtremaTimes1D(p0, p1, p2) {
+  const { a, b } = quadraticBezierPolynomialCoeffs(p0, p1, p2);
+  const times = [0, 1];
+  if (Math.abs(a) < EPSILON) return times;
+  const t = -b / (2 * a);
+  if (t > EPSILON && t < 1 - EPSILON) times.push(t);
+  return times;
+}
+
+export function bezierControlHullBBox(points) {
+  if (!points.length) return { x: 0, y: 0, width: 0, height: 0 };
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+export function bboxOfCubicBezier(p0, p1, p2, p3) {
+  const xCoeffs = cubicBezierPolynomialCoeffs(p0.x, p1.x, p2.x, p3.x);
+  const yCoeffs = cubicBezierPolynomialCoeffs(p0.y, p1.y, p2.y, p3.y);
+  const times = [
+    ...new Set([
+      ...cubicBezierExtremaTimes1D(p0.x, p1.x, p2.x, p3.x),
+      ...cubicBezierExtremaTimes1D(p0.y, p1.y, p2.y, p3.y)
+    ])
+  ];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const t of times) {
+    const x = evalCubicPolynomial(xCoeffs, t);
+    const y = evalCubicPolynomial(yCoeffs, t);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+export function bboxOfQuadraticBezier(p0, p1, p2) {
+  const xCoeffs = quadraticBezierPolynomialCoeffs(p0.x, p1.x, p2.x);
+  const yCoeffs = quadraticBezierPolynomialCoeffs(p0.y, p1.y, p2.y);
+  const times = [
+    ...new Set([
+      ...quadraticBezierExtremaTimes1D(p0.x, p1.x, p2.x),
+      ...quadraticBezierExtremaTimes1D(p0.y, p1.y, p2.y)
+    ])
+  ];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const t of times) {
+    const x = evalQuadraticPolynomial(xCoeffs, t);
+    const y = evalQuadraticPolynomial(yCoeffs, t);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function unionBBox(a, b) {
+  if (!b) return a;
+  if (!a) return b;
+  const minX = Math.min(a.x, b.x);
+  const minY = Math.min(a.y, b.y);
+  const maxX = Math.max(a.x + a.width, b.x + b.width);
+  const maxY = Math.max(a.y + a.height, b.y + b.height);
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function segmentBBox(segment, options) {
+  if (segment.type === "M") {
+    return { x: segment.point.x, y: segment.point.y, width: 0, height: 0 };
+  }
+  if (segment.type === "L") {
+    const minX = Math.min(segment.from.x, segment.to.x);
+    const minY = Math.min(segment.from.y, segment.to.y);
+    const maxX = Math.max(segment.from.x, segment.to.x);
+    const maxY = Math.max(segment.from.y, segment.to.y);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+  if (segment.type === "C") {
+    return bboxOfCubicBezier(segment.from, segment.cp1, segment.cp2, segment.to);
+  }
+  if (segment.type === "Q") {
+    return bboxOfQuadraticBezier(segment.from, segment.cp, segment.to);
+  }
+  if (segment.type === "A") {
+    const points = sampleArc(segment, options.stepsPerArc ?? 24);
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+  return null;
+}
+
 function sampleArc(segment, stepsPerCurve = 24) {
   const points = [{ ...segment.from }];
   for (const cubic of arcSegmentToCubics(segment)) {
@@ -720,7 +881,7 @@ export function figmaEffectToSvgFilter(effect, filterId = null) {
   }
 }
 
-export function bboxOfPath(segments, options = {}) {
+export function bboxOfPathSampled(segments, options = {}) {
   const points = flattenPathSegments(segments, options);
   if (!points.length) return { x: 0, y: 0, width: 0, height: 0 };
   const xs = points.map((point) => point.x);
@@ -730,6 +891,16 @@ export function bboxOfPath(segments, options = {}) {
   const maxX = Math.max(...xs);
   const maxY = Math.max(...ys);
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/** Exact bbox for M/L/C/Q; arcs sampled. Use `{ mode: "sample" }` for legacy flatten-only path. */
+export function bboxOfPath(segments, options = {}) {
+  if (options.mode === "sample") return bboxOfPathSampled(segments, options);
+  let box = null;
+  for (const segment of segments) {
+    box = unionBBox(box, segmentBBox(segment, options));
+  }
+  return box ?? { x: 0, y: 0, width: 0, height: 0 };
 }
 
 export function linearGradientStopParameter(point, start, end) {
@@ -1055,6 +1226,40 @@ export {
   layerOpacityAttributes,
   paintOrderAttributes
 } from "./svg-spec.js";
+
+export {
+  CIRCLE_CUBIC_KAPPA,
+  SVG_MATH_TOPIC_MAP,
+  applyAffineMatrix,
+  closestPointOnCubic,
+  closestPointOnQuadratic,
+  convolve1D,
+  cubicCubicIntersections,
+  cubicCurvatureAt,
+  earClipTriangulate,
+  cubicFlatnessError,
+  cubicNormalAt,
+  decomposeAffineMatrix,
+  evenoddParityFromRayCast,
+  fanTriangulateConvex,
+  gaussianKernel1D,
+  invertAffineMatrix,
+  lineCubicIntersections,
+  lineQuadraticIntersections,
+  lineSegmentIntersection,
+  offsetPointOnCubic,
+  porterDuffSourceOver,
+  premultiplyColor,
+  quadraticCurvatureAt,
+  quadraticFlatnessError,
+  reflectControlForSmoothContinuation,
+  shoelaceArea,
+  subdivideCubicBezier,
+  subdivideQuadraticBezier,
+  transformPathSegments,
+  unitCircleQuarterCubics,
+  unpremultiplyColor
+} from "./geometry.js";
 
 export {
   arcSegmentToCubics,

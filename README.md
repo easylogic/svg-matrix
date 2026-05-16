@@ -37,7 +37,7 @@ Dev server: http://127.0.0.1:4175/
 
 | Part | Lessons | Topics |
 |------|---------|--------|
-| 0 | 001–002 | viewBox, transform matrix |
+| 0 | 000–002, 067 | SVG 소개, viewBox, transform, 기본 도형 |
 | 1 | 003, 007–012 | M/L/Z, H/V, C/Q, S/T, arc, bbox |
 | 2 | 004–006, 013 | stroke distance, join/cap, align, miter math |
 | 3 | 014–015 | nonzero/evenodd, fill hit (intro) |
@@ -55,7 +55,7 @@ Dev server: http://127.0.0.1:4175/
 | 13 | 057–061 | Figma paint gap, gradients, image, stroke align, blend |
 | 14 | 062–065 | markers, textPath, paint-order, arc flatten |
 
-**65 lessons** with live demos.
+**87 lessons** with live demos (000·067 = Part 0 입문, 068–087 = SVG 수학 Parts 15–22).
 
 - 목차: `packages/site/docs/guide/README.md`
 - 로드맵: `packages/site/docs/guide/ROADMAP.md`

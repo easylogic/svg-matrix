@@ -1,7 +1,19 @@
 export const LESSONS = [
   {
+    id: "000",
+    part: "Part 0. SVG 기초",
+    title: "SVG란 무엇인가",
+    goal: "SVG가 벡터 그래픽 포맷·DOM 요소·편집기 데이터 모델인 이유를 이해하고, Canvas·비트맵과 구분한다.",
+    demo: "svg-what-is",
+    takeaways: [
+      "SVG = Scalable Vector Graphics, XML 기반 벡터.",
+      "해상도에 독립적인 geometry + paint.",
+      "Figma export·아이콘·일러스트 경로의 표준 교환 형식."
+    ]
+  },
+  {
     id: "001",
-    part: "Part 0. SVG coordinate systems",
+    part: "Part 0. SVG 기초",
     title: "viewBox와 user space",
     goal: "SVG user space, viewBox, preserveAspectRatio가 화면 좌표로 어떻게 매핑되는지 이해한다.",
     demo: "viewbox",
@@ -13,7 +25,7 @@ export const LESSONS = [
   },
   {
     id: "002",
-    part: "Part 0. SVG coordinate systems",
+    part: "Part 0. SVG 기초",
     title: "transform attribute와 matrix",
     goal: "SVG transform을 2D affine으로 읽고 local/world 좌표를 구분한다.",
     demo: "svg-transform",
@@ -21,6 +33,18 @@ export const LESSONS = [
       "SVG transform은 좌표계를 바꾸는 함수다.",
       "matrix(a,b,c,d,e,f)는 CSS matrix와 같은 여섯 숫자다.",
       "g 요소 transform은 자식 좌표에 누적된다."
+    ]
+  },
+  {
+    id: "067",
+    part: "Part 0. SVG 기초",
+    title: "SVG 문서 구조와 기본 도형",
+    goal: "path로 가기 전에 rect·circle·g·defs 등 SVG 트리와 fill/stroke 속성을 익힌다.",
+    demo: "svg-basics",
+    takeaways: [
+      "svg > g > shape 계층.",
+      "기본 도형 vs path d.",
+      "defs에 gradient·clipPath를 모아 둔다."
     ]
   },
   {
@@ -87,24 +111,24 @@ export const LESSONS = [
     id: "008",
     part: "Part 1. Path grammar",
     title: "C — cubic Bézier",
-    goal: "cubic control point 두 개와 flatten sampling의 관계를 본다.",
+    goal: "cubic control point, flatten sampling, B′(t)=0 기반 bbox를 함께 본다.",
     demo: "path-cubic",
     takeaways: [
       "C는 네 점(p0, cp1, cp2, p3)으로 곡선을 정의한다.",
       "렌더·hit test는 보통 flatten한 polyline으로 근사한다.",
-      "control handle이 곡선 밖에 있어도 유효하다."
+      "bbox는 control hull이 아니라 cubicBezierExtremaTimes1D + bboxOfCubicBezier로 구한다."
     ]
   },
   {
     id: "009",
     part: "Part 1. Path grammar",
     title: "Q — quadratic Bézier",
-    goal: "quadratic segment를 파싱하고 cubic보다 단순한 제어점 구조를 이해한다.",
+    goal: "quadratic segment와 2차 극값 기반 bboxOfQuadraticBezier를 이해한다.",
     demo: "path-quad",
     takeaways: [
       "Q는 control point 하나로 곡선을 만든다.",
-      "임의 cubic은 quadratic으로 정확히 표현되지 않는다.",
-      "폰트·아이콘 outline에 quadratic이 많다."
+      "quadratic bbox는 내부 극값이 축당 최대 1개다.",
+      "bboxOfQuadraticBezier로 selection rect를 정확히 잡는다."
     ]
   },
   {
@@ -135,12 +159,12 @@ export const LESSONS = [
     id: "012",
     part: "Part 1. Path grammar",
     title: "path bounding box",
-    goal: "flatten된 점들로 path bbox를 계산하고 selection UI에 쓰는 법을 본다.",
+    goal: "bboxOfPath로 segment bbox를 합치고, sample·control hull과 비교한다.",
     demo: "path-bbox",
     takeaways: [
-      "bbox는 control point만으로는 부족할 수 있다.",
-      "곡선은 sampling 후 min/max를 잡는 것이 안전하다.",
-      "selection marquee는 bbox + padding으로 그린다."
+      "bboxOfPath는 C/Q 해석, arc는 sample로 union한다.",
+      "control 전체 hull은 안전하지만 느슨하다; anchor만 쓰면 과소 추정.",
+      "bboxOfPathSampled는 step 수에 따라 근사된다."
     ]
   },
   {
@@ -778,6 +802,166 @@ export const LESSONS = [
       "053 convertArcsInPathD.",
       "export 파이프라인 일관성."
     ]
+  },
+  {
+    id: "068",
+    part: "Part 15. Curve calculus",
+    title: "de Casteljau subdivision",
+    goal: "cubic을 중점에서 둘로 나누는 de Casteljau 기하를 코드로 본다.",
+    demo: "geom-subdivide",
+    takeaways: ["subdivideCubicBezier.", "adaptive flatten의 기초.", "left.p3 = right.p0."]
+  },
+  {
+    id: "069",
+    part: "Part 15. Curve calculus",
+    title: "flatness와 chord error",
+    goal: "중점-현 오차로 곡선이 얼마나 휘었는지 측정하고 tolerance와 연결한다.",
+    demo: "geom-flatness",
+    takeaways: ["cubicFlatnessError.", "flattenCubicAdaptive.", "steps vs tolerance."]
+  },
+  {
+    id: "070",
+    part: "Part 15. Curve calculus",
+    title: "곡률 κ와 법선",
+    goal: "B′, B″로 곡률과 법선을 구하고 offset·textPath에 연결한다.",
+    demo: "geom-curvature",
+    takeaways: ["cubicCurvatureAt.", "cubicNormalAt.", "offset 방향."]
+  },
+  {
+    id: "071",
+    part: "Part 15. Curve calculus",
+    title: "arc center parameterization",
+    goal: "SVG arc endpoint 파라미터를 (cx,cy,θ) 중심형으로 변환한다.",
+    demo: "geom-arc-center",
+    takeaways: ["svgArcCenterParameters.", "large-arc/sweep.", "053 cubic 변환."]
+  },
+  {
+    id: "072",
+    part: "Part 15. Curve calculus",
+    title: "G¹ smooth — S와 T",
+    goal: "이전 control 반사로 tangent 연속을 만드는 규칙을 수식으로 본다.",
+    demo: "geom-smooth",
+    takeaways: ["reflectControlForSmoothContinuation.", "2·anchor − cp.", "S/T 명령."]
+  },
+  {
+    id: "073",
+    part: "Part 15. Curve calculus",
+    title: "shoelace signed area",
+    goal: "다각형 signed area로 path 면적·winding 방향을 계산한다.",
+    demo: "geom-shoelace",
+    takeaways: ["shoelaceArea.", "signed area.", "boolean·fill과 연결."]
+  },
+  {
+    id: "074",
+    part: "Part 16. Intersection & proximity",
+    title: "segment intersection",
+    goal: "두 선분 교차를 매개변수 t,u로 구한다.",
+    demo: "geom-segment-ix",
+    takeaways: ["lineSegmentIntersection.", "broad-phase bbox.", "snap·trim 전처리."]
+  },
+  {
+    id: "075",
+    part: "Part 16. Intersection & proximity",
+    title: "line ∩ cubic · curve ∩ curve",
+    goal: "직선·cubic 교점과 cubic–cubic 교차를 subdivision으로 구한다.",
+    demo: "geom-line-cubic-ix",
+    takeaways: ["lineCubicIntersections.", "cubicCubicIntersections.", "geom-curve-curve-ix 데모."]
+  },
+  {
+    id: "076",
+    part: "Part 16. Intersection & proximity",
+    title: "closest point on curve",
+    goal: "곡선 위 최근접점으로 distance·snap을 계산한다.",
+    demo: "geom-closest",
+    takeaways: ["closestPointOnCubic.", "stroke hit 일반화.", "Newton/refine."]
+  },
+  {
+    id: "077",
+    part: "Part 17. Offset curves",
+    title: "normal offset sampling",
+    goal: "법선 방향 offset으로 parallel curve를 샘플한다.",
+    demo: "geom-offset-normal",
+    takeaways: ["offsetPointOnCubic.", "offsetPolyline.", "051 offset path."]
+  },
+  {
+    id: "078",
+    part: "Part 17. Offset curves",
+    title: "offset cusps",
+    goal: "급격한 코너에서 offset이 self-intersect하는 이유를 본다.",
+    demo: "geom-offset-cusp",
+    takeaways: ["acute angle cusp.", "miter/bevel.", "variable width 한계."]
+  },
+  {
+    id: "079",
+    part: "Part 18. Transform algebra",
+    title: "affine inverse & decompose",
+    goal: "2D affine 역행렬과 translate/rotate/scale 분해를 본다.",
+    demo: "geom-affine",
+    takeaways: ["invertAffineMatrix.", "decomposeAffineMatrix.", "pointer unproject."]
+  },
+  {
+    id: "080",
+    part: "Part 18. Transform algebra",
+    title: "transform path vs group",
+    goal: "matrix를 path 좌표에 bake vs <g transform> 차이를 본다.",
+    demo: "geom-transform-path",
+    takeaways: ["transformPathSegments.", "local d 유지.", "export flatten."]
+  },
+  {
+    id: "081",
+    part: "Part 19. Rational curves",
+    title: "circle as cubic — κ constant",
+    goal: "원 분면 근사 상수 CIRCLE_CUBIC_KAPPA를 이해한다.",
+    demo: "geom-circle-cubic",
+    takeaways: ["CIRCLE_CUBIC_KAPPA.", "4 cubics = circle.", "arc A 정확."]
+  },
+  {
+    id: "082",
+    part: "Part 19. Rational curves",
+    title: "rational curves & exact arcs",
+    goal: "유리 Bézier와 SVG path 문법 한계를 구분한다.",
+    demo: "geom-rational-arc",
+    takeaways: ["weights.", "circle vs cubic approx.", "webgl NURBS."]
+  },
+  {
+    id: "083",
+    part: "Part 20. Tessellation & pixels",
+    title: "convex triangulation",
+    goal: "convex polygon fan triangulation으로 fill mesh를 만든다.",
+    demo: "geom-triangulate",
+    takeaways: ["fanTriangulateConvex.", "ear-clip 언급.", "GPU path."]
+  },
+  {
+    id: "084",
+    part: "Part 20. Tessellation & pixels",
+    title: "evenodd parity → pixels",
+    goal: "ray parity가 scanline fill과 같은 규칙임을 본다.",
+    demo: "geom-evenodd-pixel",
+    takeaways: ["evenoddParityFromRayCast.", "025 winding.", "self-intersect bow-tie."]
+  },
+  {
+    id: "085",
+    part: "Part 21. Compositing math",
+    title: "Gaussian blur kernel",
+    goal: "1D Gaussian kernel과 separable convolution을 본다.",
+    demo: "geom-gaussian",
+    takeaways: ["gaussianKernel1D.", "convolve1D.", "feGaussianBlur σ."]
+  },
+  {
+    id: "086",
+    part: "Part 21. Compositing math",
+    title: "Porter–Duff & premultiplied α",
+    goal: "source-over 합성과 premultiplied alpha를 본다.",
+    demo: "geom-porter-duff",
+    takeaways: ["porterDuffSourceOver.", "premultiplyColor.", "filter chain."]
+  },
+  {
+    id: "087",
+    part: "Part 22. Math topic map",
+    title: "SVG 수학 주제 지도",
+    goal: "Parts 15–22 수학 강의 전체를 한 표로 정리한다.",
+    demo: "geom-math-map",
+    takeaways: ["SVG_MATH_TOPIC_MAP.", "068–087.", "css-matrix / webgl 분담."]
   }
 ];
 

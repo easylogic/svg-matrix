@@ -1,5 +1,12 @@
+import { GEOMETRY_DEMO_MOUNTERS } from "./geometry-demos.js";
 import {
+  bboxOfCubicBezier,
   bboxOfPath,
+  bboxOfPathSampled,
+  bboxOfQuadraticBezier,
+  bezierControlHullBBox,
+  cubicBezierExtremaTimes1D,
+  cubicBezierPolynomialCoeffs,
   applySpreadMethod,
   arcSegmentToCubics,
   buildPatternMarkup,
@@ -462,19 +469,101 @@ function mountPathCubicDemo(canvas, toolbar, readout) {
   poly.setAttribute("fill", "none");
   poly.setAttribute("stroke", "#2563eb");
   poly.setAttribute("stroke-width", "3");
-  svg.append(curve, poly);
+  const hullBox = document.createElementNS(svgNs(), "rect");
+  hullBox.setAttribute("fill", "rgba(148, 163, 184, 0.08)");
+  hullBox.setAttribute("stroke", "#94a3b8");
+  hullBox.setAttribute("stroke-width", "1.5");
+  hullBox.setAttribute("stroke-dasharray", "4 4");
+  const exactBox = document.createElementNS(svgNs(), "rect");
+  exactBox.setAttribute("fill", "rgba(245, 158, 11, 0.1)");
+  exactBox.setAttribute("stroke", "#f59e0b");
+  exactBox.setAttribute("stroke-width", "2");
+  const extrema = document.createElementNS(svgNs(), "g");
+  svg.append(curve, poly, hullBox, exactBox, extrema);
+
+  function setBox(rect, box) {
+    rect.setAttribute("x", String(box.x));
+    rect.setAttribute("y", String(box.y));
+    rect.setAttribute("width", String(box.width));
+    rect.setAttribute("height", String(box.height));
+  }
 
   function render() {
     const segments = parsePathD(d);
     const flat = flattenPathSegments(segments, { stepsPerCurve: Number(steps.input.value) });
     poly.setAttribute("points", flat.map((p) => `${p.x},${p.y}`).join(" "));
     const c = segments.find((s) => s.type === "C");
-    readout.textContent = `cubic segment + ${flat.length} sampled points
-B(1)=(${cubicBezierPoint(c.from, c.cp1, c.cp2, c.to, 1).x.toFixed(1)}, ${cubicBezierPoint(c.from, c.cp1, c.cp2, c.to, 1).y.toFixed(1)})
-control handles at cp1/cp2 drive curvature`;
+    const hull = bezierControlHullBBox([c.from, c.cp1, c.cp2, c.to]);
+    const exact = bboxOfCubicBezier(c.from, c.cp1, c.cp2, c.to);
+    setBox(hullBox, hull);
+    setBox(exactBox, exact);
+    const xTimes = cubicBezierExtremaTimes1D(c.from.x, c.cp1.x, c.cp2.x, c.to.x);
+    const yTimes = cubicBezierExtremaTimes1D(c.from.y, c.cp1.y, c.cp2.y, c.to.y);
+    const times = [...new Set([...xTimes, ...yTimes])];
+    extrema.replaceChildren(
+      ...times.map((t) => {
+        const p = cubicBezierPoint(c.from, c.cp1, c.cp2, c.to, t);
+        const dot = document.createElementNS(svgNs(), "circle");
+        dot.setAttribute("cx", String(p.x));
+        dot.setAttribute("cy", String(p.y));
+        dot.setAttribute("r", "5");
+        dot.setAttribute("fill", "#f59e0b");
+        dot.setAttribute("stroke", "#fff");
+        dot.setAttribute("stroke-width", "1.5");
+        return dot;
+      })
+    );
+    const cx = cubicBezierPolynomialCoeffs(c.from.x, c.cp1.x, c.cp2.x, c.to.x);
+    readout.textContent = `cubic + ${flat.length} flatten samples
+
+control hull (gray): ${hull.width.toFixed(0)}×${hull.height.toFixed(0)} — 네 점 AABB (느슨할 수 있음, 곡선은 항상 안쪽)
+exact bbox (orange): ${exact.width.toFixed(0)}×${exact.height.toFixed(0)} — B′(t)=0 극값 + 끝점 (tight)
+extrema t: ${times.map((t) => t.toFixed(3)).join(", ")}
+
+x(t) coeffs: a=${cx.a.toFixed(1)} b=${cx.b.toFixed(1)} c=${cx.c.toFixed(1)} d=${cx.d.toFixed(1)}`;
   }
   steps.input.addEventListener("input", render);
   render();
+}
+
+function mountPathQuadDemo(canvas, toolbar, readout) {
+  const d = "M 80 320 Q 200 40 360 320";
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 420");
+  canvas.append(svg);
+  const curve = document.createElementNS(svgNs(), "path");
+  curve.setAttribute("d", d);
+  curve.setAttribute("fill", "none");
+  curve.setAttribute("stroke", "#2563eb");
+  curve.setAttribute("stroke-width", "3");
+  const hullBox = document.createElementNS(svgNs(), "rect");
+  hullBox.setAttribute("fill", "none");
+  hullBox.setAttribute("stroke", "#94a3b8");
+  hullBox.setAttribute("stroke-dasharray", "4 4");
+  const exactBox = document.createElementNS(svgNs(), "rect");
+  exactBox.setAttribute("fill", "rgba(245, 158, 11, 0.1)");
+  exactBox.setAttribute("stroke", "#f59e0b");
+  exactBox.setAttribute("stroke-width", "2");
+  svg.append(curve, hullBox, exactBox);
+
+  const segments = parsePathD(d);
+  const q = segments.find((s) => s.type === "Q");
+  const hull = bezierControlHullBBox([q.from, q.cp, q.to]);
+  const exact = bboxOfQuadraticBezier(q.from, q.cp, q.to);
+  hullBox.setAttribute("x", String(hull.x));
+  hullBox.setAttribute("y", String(hull.y));
+  hullBox.setAttribute("width", String(hull.width));
+  hullBox.setAttribute("height", String(hull.height));
+  exactBox.setAttribute("x", String(exact.x));
+  exactBox.setAttribute("y", String(exact.y));
+  exactBox.setAttribute("width", String(exact.width));
+  exactBox.setAttribute("height", String(exact.height));
+  readout.textContent = `quadratic Q
+
+control hull: ${hull.width.toFixed(0)}×${hull.height.toFixed(0)}
+exact bbox: ${exact.width.toFixed(0)}×${exact.height.toFixed(0)} (B′(t)=0, 최대 1개 내부 극값)
+
+Q(t) = (1-t)²·P0 + 2(1-t)t·P1 + t²·P2`;
 }
 
 function mountPathFlattenDemo(canvas, toolbar, readout) {
@@ -513,6 +602,15 @@ ${flat.length} points — more steps => better stroke/fill/bbox accuracy`;
 }
 
 function mountPathBboxDemo(canvas, toolbar, readout) {
+  const mode = document.createElement("select");
+  [
+    ["exact", "exact (C/Q 해석)"],
+    ["hull", "control hull only"],
+    ["sample", "flatten sample"]
+  ].forEach(([value, label]) => mode.append(new Option(label, value)));
+  const steps = range("sample steps", 4, 48, 12);
+  toolbar.append(el("label", "", "bbox"), mode, steps.wrapper);
+
   const d = "M 120 300 C 200 40, 440 360, 520 80";
   const svg = document.createElementNS(svgNs(), "svg");
   svg.setAttribute("viewBox", "0 0 640 420");
@@ -527,16 +625,46 @@ function mountPathBboxDemo(canvas, toolbar, readout) {
   box.setAttribute("stroke", "#f59e0b");
   box.setAttribute("stroke-width", "2");
   box.setAttribute("stroke-dasharray", "8 4");
-  svg.append(path, box);
+  const handles = document.createElementNS(svgNs(), "g");
+  svg.append(path, box, handles);
 
-  const bbox = bboxOfPath(parsePathD(d), { stepsPerCurve: 24 });
-  box.setAttribute("x", String(bbox.x));
-  box.setAttribute("y", String(bbox.y));
-  box.setAttribute("width", String(bbox.width));
-  box.setAttribute("height", String(bbox.height));
-  readout.textContent = `bboxOfPath (sampled)
-x=${bbox.x.toFixed(1)} y=${bbox.y.toFixed(1)}
-width=${bbox.width.toFixed(1)} height=${bbox.height.toFixed(1)}`;
+  function render() {
+    const segments = parsePathD(d);
+    const c = segments.find((s) => s.type === "C");
+    let bbox;
+    if (mode.value === "hull") {
+      bbox = bezierControlHullBBox([c.from, c.cp1, c.cp2, c.to]);
+    } else if (mode.value === "sample") {
+      bbox = bboxOfPathSampled(segments, { stepsPerCurve: Number(steps.input.value) });
+    } else {
+      bbox = bboxOfPath(segments);
+    }
+    box.setAttribute("x", String(bbox.x));
+    box.setAttribute("y", String(bbox.y));
+    box.setAttribute("width", String(bbox.width));
+    box.setAttribute("height", String(bbox.height));
+    handles.replaceChildren(
+      [c.from, c.cp1, c.cp2, c.to].map((p) => {
+        const dot = document.createElementNS(svgNs(), "circle");
+        dot.setAttribute("cx", String(p.x));
+        dot.setAttribute("cy", String(p.y));
+        dot.setAttribute("r", "4");
+        dot.setAttribute("fill", "#94a3b8");
+        return dot;
+      })
+    );
+    const exact = bboxOfCubicBezier(c.from, c.cp1, c.cp2, c.to);
+    const sampled = bboxOfPathSampled(segments, { stepsPerCurve: Number(steps.input.value) });
+    readout.textContent = `mode=${mode.value}
+x=${bbox.x.toFixed(1)} y=${bbox.y.toFixed(1)} w=${bbox.width.toFixed(1)} h=${bbox.height.toFixed(1)}
+
+exact cubic: ${exact.width.toFixed(1)}×${exact.height.toFixed(1)}
+sample(${steps.input.value}): ${sampled.width.toFixed(1)}×${sampled.height.toFixed(1)}
+exact ⊆ hull; anchors-only bbox는 cp를 빼면 과소 추정`;
+  }
+  mode.addEventListener("change", render);
+  steps.input.addEventListener("input", render);
+  render();
 }
 
 function mountMiterMathDemo(canvas, toolbar, readout) {
@@ -2078,6 +2206,114 @@ ${state.d}`;
   void editor;
 }
 
+function mountWhatIsSvgDemo(canvas, toolbar, readout) {
+  const zoom = range("확대", 1, 4, 1, 0.25);
+  toolbar.append(zoom.wrapper);
+  const wrap = el("div", "");
+  wrap.style.display = "grid";
+  wrap.style.gridTemplateColumns = "1fr 1fr";
+  wrap.style.gap = "16px";
+  canvas.append(wrap);
+
+  const rasterBox = el("div", "");
+  rasterBox.style.border = "1px solid #cbd5e1";
+  rasterBox.style.overflow = "hidden";
+  rasterBox.style.height = "280px";
+  const rasterCanvas = document.createElement("canvas");
+  rasterCanvas.width = 120;
+  rasterCanvas.height = 120;
+  rasterBox.append(rasterCanvas);
+
+  const svgBox = el("div", "");
+  svgBox.style.border = "1px solid #cbd5e1";
+  svgBox.style.overflow = "hidden";
+  svgBox.style.height = "280px";
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 120 120");
+  svg.innerHTML =
+    '<circle cx="60" cy="60" r="48" fill="#2563eb"/><path d="M 30 75 L 60 35 L 90 75 Z" fill="#f59e0b" opacity="0.9"/>';
+  svgBox.append(svg);
+
+  wrap.append(rasterBox, svgBox);
+
+  function drawRaster() {
+    const ctx = rasterCanvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, 120, 120);
+    const z = Number(zoom.input.value);
+    ctx.scale(z, z);
+    ctx.fillStyle = "#2563eb";
+    ctx.beginPath();
+    ctx.arc(60, 60, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.moveTo(30, 75);
+    ctx.lineTo(60, 35);
+    ctx.lineTo(90, 75);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function render() {
+    const z = Number(zoom.input.value);
+    rasterCanvas.style.width = `${120 * z}px`;
+    rasterCanvas.style.height = `${120 * z}px`;
+    rasterCanvas.style.imageRendering = z > 1.5 ? "pixelated" : "auto";
+    svg.style.width = `${120 * z}px`;
+    svg.style.height = `${120 * z}px`;
+    drawRaster();
+    readout.textContent = `왼쪽: Canvas에 한 번 그린 비트맵 (확대 시 계단/흐림)
+오른쪽: SVG 벡터 (확대해도 브라우저가 geometry 재계산)
+zoom=${z.toFixed(2)}×`;
+  }
+  zoom.input.addEventListener("input", render);
+  render();
+}
+
+function mountSvgBasicsDemo(canvas, toolbar, readout) {
+  const pick = document.createElement("select");
+  ["rect", "circle", "ellipse", "line", "polyline", "polygon", "path"].forEach((tag) =>
+    pick.append(new Option(tag, tag))
+  );
+  toolbar.append(el("label", "", "요소"), pick);
+
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 420");
+  canvas.append(svg);
+  const defs = document.createElementNS(svgNs(), "defs");
+  const grad = document.createElementNS(svgNs(), "linearGradient");
+  grad.setAttribute("id", "g1");
+  grad.innerHTML = '<stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#22c55e"/>';
+  defs.append(grad);
+  const content = document.createElementNS(svgNs(), "g");
+  content.setAttribute("transform", "translate(40,30)");
+  const shapes = {
+    rect: '<rect x="20" y="40" width="120" height="70" rx="8" fill="url(#g1)" stroke="#1e293b" stroke-width="2"/>',
+    circle: '<circle cx="200" cy="75" r="50" fill="#f59e0b" stroke="#92400e" stroke-width="2"/>',
+    ellipse: '<ellipse cx="340" cy="75" rx="70" ry="45" fill="#a78bfa" stroke="#5b21b6" stroke-width="2"/>',
+    line: '<line x1="420" y1="40" x2="560" y2="120" stroke="#ef4444" stroke-width="4"/>',
+    polyline:
+      '<polyline points="40,200 100,160 160,220 220,170" fill="none" stroke="#0ea5e9" stroke-width="3"/>',
+    polygon: '<polygon points="300,160 360,140 420,200 340,240 280,210" fill="rgba(37,99,235,0.3)" stroke="#1d4ed8" stroke-width="2"/>',
+    path: '<path d="M 480 200 C 500 120, 580 280, 600 180" fill="none" stroke="#16a34a" stroke-width="4"/>'
+  };
+  svg.append(defs, content);
+
+  function render() {
+    content.innerHTML = shapes[pick.value];
+    const snippet = `<svg viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg">
+  <defs>…</defs>
+  <g transform="translate(40,30)">
+    ${shapes[pick.value]}
+  </g>
+</svg>`;
+    readout.textContent = `${pick.value} 선택\n\n${snippet}`;
+  }
+  pick.addEventListener("change", render);
+  render();
+}
+
 function mountPrimerCapabilityMapDemo(canvas, toolbar, readout) {
   const wrap = el("div", "primer-map");
   wrap.style.fontFamily = "ui-monospace, monospace";
@@ -2405,6 +2641,12 @@ mid Y accurate≈${accurate[Math.floor(accurate.length / 2)].y.toFixed(1)}`;
 
 function mountDemo(lesson, canvas, toolbar, readout) {
   switch (lesson.demo) {
+    case "svg-what-is":
+      mountWhatIsSvgDemo(canvas, toolbar, readout);
+      break;
+    case "svg-basics":
+      mountSvgBasicsDemo(canvas, toolbar, readout);
+      break;
     case "viewbox":
       mountViewBoxDemo(canvas, toolbar, readout);
       break;
@@ -2430,7 +2672,7 @@ function mountDemo(lesson, canvas, toolbar, readout) {
       mountPathCubicDemo(canvas, toolbar, readout);
       break;
     case "path-quad":
-      mountPathCommandDemo(canvas, toolbar, readout, "M 80 320 Q 200 40 360 320 T 560 120", "Q / T");
+      mountPathQuadDemo(canvas, toolbar, readout);
       break;
     case "path-smooth":
       mountPathCommandDemo(canvas, toolbar, readout, "M 60 300 C 120 60 200 360 260 120 S 420 40 580 300", "C / S");
@@ -2600,8 +2842,14 @@ function mountDemo(lesson, canvas, toolbar, readout) {
     case "arc-flatten-unified":
       mountArcFlattenUnifiedDemo(canvas, toolbar, readout);
       break;
-    default:
+    default: {
+      const geometryDemo = GEOMETRY_DEMO_MOUNTERS[lesson.demo];
+      if (geometryDemo) {
+        geometryDemo(canvas, toolbar, readout);
+        break;
+      }
       readout.textContent = `Demo "${lesson.demo}" is not implemented yet.`;
+    }
   }
 }
 

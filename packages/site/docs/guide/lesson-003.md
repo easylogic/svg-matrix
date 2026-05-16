@@ -7,6 +7,8 @@ demo: "003"
 
 # path d 명령어 — M, L, Z
 
+Part 0에서 SVG가 무엇인지([000](./lesson-000.md)), viewBox·transform·기본 도형([001](./lesson-001.md), [067](./lesson-067.md), [002](./lesson-002.md))을 봤다면, 이제 **가장 유연한 도형 표현**인 `path`로 들어갑니다.
+
 Figma vector, Illustrator path, SVG `<path d="...">`는 결국 **segment 연결**입니다. 문자열 `d`는 그 목록의 압축 표기입니다.
 
 <LessonDemo id="003" />

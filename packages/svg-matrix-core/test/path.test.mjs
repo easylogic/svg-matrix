@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   applySvgMatrix,
+  bboxOfCubicBezier,
   bboxOfPath,
+  bboxOfPathSampled,
+  bboxOfQuadraticBezier,
+  bezierControlHullBBox,
+  cubicBezierExtremaTimes1D,
   cubicBezierPoint,
+  quadraticBezierExtremaTimes1D,
   distancePointToSegment,
   flattenPathSegments,
   linearGradientStopParameter,
@@ -93,6 +99,54 @@ test("bbox includes curve extent", () => {
   const box = bboxOfPath(segments, { stepsPerCurve: 24 });
   assert.ok(box.width > 50);
   assert.ok(box.height > 20);
+});
+
+test("cubic control hull AABB contains curve but can be looser than exact bbox", () => {
+  const p0 = { x: 0, y: 0 };
+  const p1 = { x: 0, y: 100 };
+  const p2 = { x: 100, y: 100 };
+  const p3 = { x: 100, y: 0 };
+  const hull = bezierControlHullBBox([p0, p1, p2, p3]);
+  const exact = bboxOfCubicBezier(p0, p1, p2, p3);
+  assert.ok(exact.width <= hull.width + 1e-9);
+  assert.ok(exact.height < hull.height - 1);
+});
+
+test("cubic bbox matches dense sampling", () => {
+  const p0 = { x: 10, y: 200 };
+  const p1 = { x: 120, y: 20 };
+  const p2 = { x: 480, y: 380 };
+  const p3 = { x: 560, y: 80 };
+  const exact = bboxOfCubicBezier(p0, p1, p2, p3);
+  const sampled = bboxOfPathSampled(parsePathD(`M ${p0.x} ${p0.y} C ${p1.x} ${p1.y} ${p2.x} ${p2.y} ${p3.x} ${p3.y}`), {
+    stepsPerCurve: 64
+  });
+  assert.ok(Math.abs(exact.x - sampled.x) < 0.5);
+  assert.ok(Math.abs(exact.y - sampled.y) < 0.5);
+  assert.ok(Math.abs(exact.width - sampled.width) < 0.5);
+  assert.ok(Math.abs(exact.height - sampled.height) < 0.5);
+});
+
+test("quadratic exact bbox is inside control hull AABB", () => {
+  const p0 = { x: 0, y: 0 };
+  const p1 = { x: 50, y: 150 };
+  const p2 = { x: 100, y: 0 };
+  const qTimes = quadraticBezierExtremaTimes1D(p0.y, p1.y, p2.y);
+  assert.ok(qTimes.some((t) => t > 0 && t < 1));
+  const hull = bezierControlHullBBox([p0, p1, p2]);
+  const exact = bboxOfQuadraticBezier(p0, p1, p2);
+  assert.ok(exact.height <= hull.height + 1e-9);
+  assert.ok(exact.width <= hull.width + 1e-9);
+});
+
+test("anchor-only bbox can underestimate cubic curve", () => {
+  const p0 = { x: 0, y: 0 };
+  const p1 = { x: 0, y: 120 };
+  const p2 = { x: 200, y: 120 };
+  const p3 = { x: 200, y: 0 };
+  const anchorsOnly = bezierControlHullBBox([p0, p3]);
+  const exact = bboxOfCubicBezier(p0, p1, p2, p3);
+  assert.ok(exact.height > anchorsOnly.height);
 });
 
 test("winding and fill rules", () => {

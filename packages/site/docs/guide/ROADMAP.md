@@ -16,7 +16,20 @@ title: "커리큘럼 로드맵"
 | 5 | 019–020 paint servers 입문 | ✅ |
 | 6 | 021–024 path editor | ✅ |
 
-## 완료 (v0.9) — 001–065
+## 완료 (v1.0) — 000–087
+
+| Part | 강의 | 상태 |
+|------|------|------|
+| 15 | 068–073 Curve calculus | ✅ |
+| 16 | 074–076 Intersection & proximity | ✅ |
+| 17 | 077–078 Offset curves | ✅ |
+| 18 | 079–080 Transform algebra | ✅ |
+| 19 | 081–082 Rational curves | ✅ |
+| 20 | 083–084 Tessellation & pixels | ✅ |
+| 21 | 085–086 Compositing math | ✅ |
+| 22 | 087 Math topic map | ✅ |
+
+## 완료 (v0.9) — 000–067 (본 강의 65 + Part 0 보강 2)
 
 | Part | 강의 | 상태 |
 |------|------|------|
