@@ -7,7 +7,7 @@ demo: "geom-rational-arc"
 
 # rational curves & exact arcs
 
-유리 Bézier는 원을 정확히 표현하지만 SVG path에는 없습니다. 정확 원은 <circle>·A.
+유리 Bézier는 원을 정확히 표현하지만 SVG path에는 없습니다. 정확 원은 `circle` 요소·`A` arc 명령으로 둡니다.
 
 <LessonDemo id="082" />
 

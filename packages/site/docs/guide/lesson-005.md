@@ -2,33 +2,51 @@
 id: "005"
 title: "join, cap, miter limit"
 part: "Part 2. Stroke geometry"
-demo: "005"
+demo: "stroke-style"
 ---
 
 # join, cap, miter limit
 
-모서리와 끝점은 선분 하나로 끝나지 않습니다. 브라우저/SVG는 규칙으로 모양을 정합니다.
+stroke는 path **중심선**을 따라 그리지만, **모서리(join)** 와 **끝(cap)** 에서는 중심선만으로는 모양이 정해지지 않습니다. SVG는 `stroke-linejoin`, `stroke-linecap`, `stroke-miterlimit`로 규칙을 고정합니다.
 
 <LessonDemo id="005" />
 
-## linejoin
+## linejoin — 두 segment가 만나는 점
 
-- `miter`: 두 방향 연장선의 교점
-- `bevel`: 직선으로 잘라 연결
-- `round`: 원호
+| 값 | 기하 |
+|----|------|
+| `miter` | 두 tangent 방향을 **연장**한 직선의 교점을 꼭짓점으로 사용 |
+| `bevel` | 교점 대신 **직선으로 잘라** 연결 |
+| `round` | 교점 대신 **원호**로 연결 |
 
-## miterlimit
+acute angle일수록 miter 교점은 중심선에서 멀어집니다. 그 길이가 `stroke-miterlimit × strokeWidth`를 넘으면 구현은 **bevel로 fallback**합니다.
 
-```txt
-miter length / strokeWidth  >  miterlimit  →  bevel로 fallback
+```js
+import { miterLength, shouldBevelJoin, segmentTurnAngle } from "svg-matrix-core";
+
+const angle = segmentTurnAngle(incoming, outgoing);
+const miter = miterLength(angle, strokeWidth);
+const bevel = shouldBevelJoin(angle, strokeWidth, miterLimit);
 ```
 
-## linecap
+## linecap — 열린 path의 끝
 
-- `butt`: 끝에서 자름
-- `round`: 반원
-- `square`: strokeWidth만큼 연장 후 자름
+| 값 | 모양 |
+|----|------|
+| `butt` | 끝점에서 그대로 자름 |
+| `round` | 끝점에 **반원** (반지름 = strokeWidth/2) |
+| `square` | 끝점에서 tangent 방향으로 strokeWidth/2 연장 후 자름 |
+
+## Core API
+
+- `miterLength`, `shouldBevelJoin`, `segmentTurnAngle` — `svg-matrix-core`
+
+## 관련 강의
+
+- [004 stroke hit](./lesson-004.md)
+- [006 stroke align](./lesson-006.md)
+- [051 stroke-dasharray](./lesson-051.md) (css-matrix)
 
 ## 오늘의 핵심
 
-UI에서 join/cap을 바꾸는 것은 **같은 centerline path에 다른 stroke renderer**를 쓰는 것입니다.
+join/cap을 바꾸는 것은 **같은 centerline에 다른 stroke renderer**를 쓰는 것입니다. 편집기 preview도 centerline + join 규칙을 재현해야 Figma export와 맞습니다.

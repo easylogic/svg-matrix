@@ -2,6 +2,7 @@ import { arcSegmentToCubics } from "./arc.js";
 import {
   add,
   cubicBezierPoint,
+  cubicBezierTangent,
   distancePointToSegment,
   flattenPathSegments,
   length,
@@ -355,6 +356,101 @@ export function morphPathDLinear(dFrom, dTo, t) {
   }
   const morphed = segsA.map((seg, index) => lerpSegmentMorph(seg, segsB[index], clamped));
   return { compatible: true, d: pathDFromSegments(morphed), t: clamped };
+}
+
+/** Precomputed cumulative distances along flattened path (for uniform-speed motion). */
+export function buildArcLengthLookup(segments, options = {}) {
+  const stepsPerCurve = options.stepsPerCurve ?? 32;
+  const points = flattenPathSegments(segments, { stepsPerCurve });
+  if (points.length === 0) return { cumulative: [0], total: 0, points: [] };
+  const cumulative = [0];
+  for (let i = 1; i < points.length; i += 1) {
+    cumulative.push(cumulative[i - 1] + length(subtract(points[i], points[i - 1])));
+  }
+  return { cumulative, total: cumulative[cumulative.length - 1], points, stepsPerCurve };
+}
+
+function pointAtArcLengthLookup(lookup, distance) {
+  const { cumulative, points, total } = lookup;
+  if (!points.length) return { point: { x: 0, y: 0 }, tangent: { x: 1, y: 0 }, index: 0 };
+  const target = Math.min(total, Math.max(0, distance));
+  if (target <= 0) {
+    const tangent = normalize(subtract(points[1] ?? points[0], points[0]));
+    return { point: { ...points[0] }, tangent, index: 0 };
+  }
+  let lo = 0;
+  let hi = cumulative.length - 1;
+  while (lo < hi - 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (cumulative[mid] <= target) lo = mid;
+    else hi = mid;
+  }
+  const span = cumulative[hi] - cumulative[lo] || 1;
+  const t = (target - cumulative[lo]) / span;
+  const point = add(points[lo], scale(subtract(points[hi], points[lo]), t));
+  const tangent = normalize(subtract(points[hi], points[lo]));
+  return { point, tangent, index: lo };
+}
+
+/** progress∈[0,1] maps linearly to arc length (uniform speed along polyline approximation). */
+export function sampleMotionAlongPathUniform(segments, progress, options = {}) {
+  const lookup = options.lookup ?? buildArcLengthLookup(segments, options);
+  const p = Math.min(1, Math.max(0, progress));
+  const sample = pointAtArcLengthLookup(lookup, p * lookup.total);
+  return {
+    point: sample.point,
+    tangent: sample.tangent,
+    distance: p * lookup.total,
+    progress: p,
+    totalLength: lookup.total,
+    lookup
+  };
+}
+
+function drawableSegments(segments) {
+  return segments.filter((s) => s.type !== "M" && s.type !== "Z");
+}
+
+function sampleDrawableAtParameter(segment, t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  if (segment.type === "L") {
+    return {
+      point: add(segment.from, scale(subtract(segment.to, segment.from), clamped)),
+      tangent: normalize(subtract(segment.to, segment.from))
+    };
+  }
+  if (segment.type === "C") {
+    return {
+      point: cubicBezierPoint(segment.from, segment.cp1, segment.cp2, segment.to, clamped),
+      tangent: cubicBezierTangent(segment.from, segment.cp1, segment.cp2, segment.to, clamped)
+    };
+  }
+  if (segment.type === "Q") {
+    return {
+      point: quadraticBezierPoint(segment.from, segment.cp, segment.to, clamped),
+      tangent: normalize(
+        add(
+          scale(subtract(segment.cp, segment.from), 2 * (1 - clamped)),
+          scale(subtract(segment.to, segment.cp), 2 * clamped)
+        )
+      )
+    };
+  }
+  return { point: { ...segment.to }, tangent: { x: 1, y: 0 } };
+}
+
+/** progress∈[0,1] splits evenly across segment count (SMIL-style parameter speed, not arc length). */
+export function sampleMotionAlongPathByParameter(segments, progress) {
+  const drawable = drawableSegments(segments);
+  if (!drawable.length) {
+    return { point: { x: 0, y: 0 }, tangent: { x: 1, y: 0 }, progress: 0, segmentIndex: 0, localT: 0 };
+  }
+  const p = Math.min(1, Math.max(0, progress));
+  const scaled = p * drawable.length;
+  const segmentIndex = Math.min(drawable.length - 1, Math.floor(scaled));
+  const localT = scaled - segmentIndex;
+  const sample = sampleDrawableAtParameter(drawable[segmentIndex], localT);
+  return { ...sample, progress: p, segmentIndex, localT };
 }
 
 /** progress ∈ [0,1] by arc length — JS motion engine helper */

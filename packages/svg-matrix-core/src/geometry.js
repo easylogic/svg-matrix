@@ -464,6 +464,43 @@ function pointInTriangle(p, a, b, c) {
   return !(hasNeg && hasPos);
 }
 
+function findHoleBridge(outer, hole) {
+  let best = { outerIndex: 0, holeIndex: 0, dist: Infinity };
+  for (let i = 0; i < outer.length; i += 1) {
+    for (let j = 0; j < hole.length; j += 1) {
+      const dist = distanceSquared(outer[i], hole[j]);
+      if (dist < best.dist) best = { outerIndex: i, holeIndex: j, dist };
+    }
+  }
+  return best;
+}
+
+function mergeHoleIntoRing(outer, hole) {
+  const { outerIndex, holeIndex } = findHoleBridge(outer, hole);
+  const holeWalk = [...hole.slice(holeIndex), ...hole.slice(0, holeIndex)];
+  return [
+    ...outer.slice(0, outerIndex + 1),
+    holeWalk[0],
+    ...holeWalk,
+    holeWalk[0],
+    outer[outerIndex],
+    ...outer.slice(outerIndex + 1)
+  ];
+}
+
+/** Merge holes into outer ring (bridge) then ear-clip. Holes should wind opposite outer. */
+export function triangulatePolygonWithHoles(outer, holes = []) {
+  if (!outer.length) return { triangles: [], mergedRing: [] };
+  if (!holes.length) return { triangles: earClipTriangulate(outer), mergedRing: outer };
+  const outerArea = shoelaceArea(outer);
+  let ring = outer.slice();
+  for (const hole of holes) {
+    const holeRing = shoelaceArea(hole) * outerArea > 0 ? hole.slice().reverse() : hole.slice();
+    ring = mergeHoleIntoRing(ring, holeRing);
+  }
+  return { triangles: earClipTriangulate(ring), mergedRing: ring };
+}
+
 /** Ear clipping for simple polygons (concave OK). Falls back to fan if clipping stalls. */
 export function earClipTriangulate(polygon) {
   if (polygon.length < 3) return [];
@@ -534,6 +571,16 @@ export function evenoddParityFromRayCast(point, polygon) {
     }
   }
   return crossings % 2 === 1;
+}
+
+/** Elevate quadratic Bézier control points to an equivalent cubic segment. */
+export function elevateQuadraticToCubic(p0, p1, p2) {
+  return {
+    p0: { ...p0 },
+    p1: { x: p0.x + (2 / 3) * (p1.x - p0.x), y: p0.y + (2 / 3) * (p1.y - p0.y) },
+    p2: { x: p2.x + (2 / 3) * (p1.x - p2.x), y: p2.y + (2 / 3) * (p1.y - p2.y) },
+    p3: { ...p2 }
+  };
 }
 
 export const SVG_MATH_TOPIC_MAP = [

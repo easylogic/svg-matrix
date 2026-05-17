@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   arcSegmentToCubics,
+  buildArcLengthLookup,
   compareFlattenMethods,
   convertArcsInPathD,
   dashPatternPhaseAtLength,
@@ -15,7 +16,9 @@ import {
   parsePathD,
   strokeDashIntervals,
   listSubpathHandles,
-  updateSubpathHandle
+  updateSubpathHandle,
+  sampleMotionAlongPathByParameter,
+  sampleMotionAlongPathUniform
 } from "../src/index.js";
 
 test("parses stroke dasharray", () => {
@@ -100,4 +103,19 @@ test("lists and updates subpath handles independently", () => {
   assert.match(pathDFromSegments(moved), /120/);
   const firstAnchor = listSubpathHandles(moved).find((h) => h.id === "s0:a:1");
   assert.equal(firstAnchor.point.x, 40);
+});
+
+test("parameter vs uniform motion diverge with multiple segments", () => {
+  const segments = parsePathD("M 0 0 C 0 80, 40 0, 40 40 L 200 40");
+  const byParam = sampleMotionAlongPathByParameter(segments, 0.5);
+  const lookup = buildArcLengthLookup(segments, { stepsPerCurve: 32 });
+  const byLength = sampleMotionAlongPathUniform(segments, 0.5, { lookup });
+  const delta = Math.hypot(byParam.point.x - byLength.point.x, byParam.point.y - byLength.point.y);
+  assert.ok(delta > 10);
+});
+
+test("arc length lookup reaches end at progress 1", () => {
+  const segments = parsePathD("M 0 0 L 100 0");
+  const end = sampleMotionAlongPathUniform(segments, 1, { stepsPerCurve: 16 });
+  assert.ok(Math.abs(end.point.x - 100) < 1);
 });

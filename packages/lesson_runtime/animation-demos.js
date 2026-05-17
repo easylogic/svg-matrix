@@ -6,8 +6,15 @@ import {
   morphPathDLinear,
   parsePathD,
   pathLength,
+  applySmilTimingPreset,
+  buildArcLengthLookup,
   sampleMotionAlongPath,
-  strokeDashDrawKeyframes
+  sampleMotionAlongPathByParameter,
+  sampleMotionAlongPathUniform,
+  strokeDashDrawKeyframes,
+  svgPathElementApiGuide,
+  startWaapiSvgAnimation,
+  waapiKeyframesForAttribute
 } from "../svg-matrix-core/src/index.js";
 
 function svgNs() {
@@ -162,6 +169,94 @@ export function mountPathMorphDemo(canvas, toolbar, readout) {
   render();
 }
 
+export function mountUniformMotionDemo(canvas, toolbar, readout) {
+  const progress = range("progress %", 0, 100, 40);
+  toolbar.append(progress.wrapper);
+  const pathD = "M 40 160 C 40 20, 600 20, 600 160";
+  const segments = parsePathD(pathD);
+  const lookup = buildArcLengthLookup(segments, { stepsPerCurve: 48 });
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 200");
+  canvas.append(svg);
+  const curve = document.createElementNS(svgNs(), "path");
+  curve.setAttribute("d", pathD);
+  curve.setAttribute("fill", "none");
+  curve.setAttribute("stroke", "#cbd5e1");
+  curve.setAttribute("stroke-width", "2");
+  const dotParam = document.createElementNS(svgNs(), "circle");
+  dotParam.setAttribute("r", "8");
+  dotParam.setAttribute("fill", "#f59e0b");
+  const dotLength = document.createElementNS(svgNs(), "circle");
+  dotLength.setAttribute("r", "8");
+  dotLength.setAttribute("fill", "#2563eb");
+  svg.append(curve, dotParam, dotLength);
+
+  function render() {
+    const p = Number(progress.input.value) / 100;
+    const byParam = sampleMotionAlongPathByParameter(segments, p);
+    const byLength = sampleMotionAlongPathUniform(segments, p, { lookup });
+    dotParam.setAttribute("cx", String(byParam.point.x));
+    dotParam.setAttribute("cy", String(byParam.point.y));
+    dotLength.setAttribute("cx", String(byLength.point.x));
+    dotLength.setAttribute("cy", String(byLength.point.y));
+    readout.textContent =
+      `주황=segment parameter t (SMIL 느낌) · 파랑=arc length uniform\n` +
+      `progress=${p.toFixed(2)} · lookup steps=${lookup.stepsPerCurve} total=${lookup.total.toFixed(1)}`;
+  }
+  progress.input.addEventListener("input", render);
+  render();
+}
+
+export function mountPathApiDemo(canvas, toolbar, readout) {
+  const pathD = "M 80 120 C 200 20, 440 220, 560 80";
+  const segments = parsePathD(pathD);
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 200");
+  canvas.append(svg);
+  const path = document.createElementNS(svgNs(), "path");
+  path.setAttribute("d", pathD);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "#2563eb");
+  path.setAttribute("stroke-width", "3");
+  svg.append(path);
+  const nativeLen = path.getTotalLength();
+  const coreLen = pathLength(segments, { stepsPerCurve: 32 });
+  const midNative = path.getPointAtLength(nativeLen * 0.5);
+  const guide = svgPathElementApiGuide();
+  readout.textContent =
+    `getTotalLength()=${nativeLen.toFixed(2)} · pathLength(core)=${coreLen.toFixed(2)}\n` +
+    `getPointAtLength(50%)=(${midNative.x.toFixed(1)}, ${midNative.y.toFixed(1)})\n` +
+    `native: ${guide.native.join(" · ")}\ncore: ${guide.core.join(" · ")}`;
+}
+
+export function mountSmilTimingDemo(canvas, toolbar, readout) {
+  const pathD = "M 60 150 C 160 30, 480 270, 580 70";
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 200");
+  canvas.append(svg);
+  const path = document.createElementNS(svgNs(), "path");
+  path.setAttribute("d", pathD);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "#94a3b8");
+  path.setAttribute("stroke-dasharray", "6 4");
+  const dotLinear = document.createElementNS(svgNs(), "circle");
+  dotLinear.setAttribute("r", "8");
+  dotLinear.setAttribute("fill", "#64748b");
+  const dotEase = document.createElementNS(svgNs(), "circle");
+  dotEase.setAttribute("r", "8");
+  dotEase.setAttribute("fill", "#2563eb");
+  dotLinear.innerHTML = buildAnimateMotionMarkup(
+    applySmilTimingPreset({ pathD, dur: "4s", repeatCount: "indefinite" }, "linear")
+  );
+  dotEase.innerHTML = buildAnimateMotionMarkup(
+    applySmilTimingPreset({ pathD, dur: "4s", repeatCount: "indefinite" }, "easeInOut")
+  );
+  svg.append(path, dotLinear, dotEase);
+  readout.textContent =
+    `회색=linear · 파랑=easeInOut (calcMode=spline keySplines)\n` +
+    buildAnimateMotionMarkup(applySmilTimingPreset({ pathD, dur: "4s" }, "easeInOut"));
+}
+
 export function mountJsMotionDemo(canvas, toolbar, readout) {
   const progress = range("progress %", 0, 100, 0);
   toolbar.append(progress.wrapper);
@@ -191,6 +286,27 @@ export function mountJsMotionDemo(canvas, toolbar, readout) {
   render();
 }
 
+export function mountWaapiDemo(canvas, toolbar, readout) {
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 200");
+  canvas.append(svg);
+  const circle = document.createElementNS(svgNs(), "circle");
+  circle.setAttribute("cx", "120");
+  circle.setAttribute("cy", "100");
+  circle.setAttribute("r", "36");
+  circle.setAttribute("fill", "#2563eb");
+  svg.append(circle);
+  const anim = startWaapiSvgAnimation(circle, "cx", {
+    from: 120,
+    to: 520,
+    duration: 3000,
+    iterations: Infinity,
+    easing: "ease-in-out"
+  });
+  const kf = waapiKeyframesForAttribute("cx", 120, 520);
+  readout.textContent = `WAAPI element.animate (SMIL/CSS 대안)\nkeyframes=${JSON.stringify(kf)}\nplaybackRate=${anim.playbackRate}`;
+}
+
 export const ANIMATION_DEMO_MOUNTERS = {
   "anim-smil-attribute": mountSmilAnimateDemo,
   "anim-smil-transform": mountSmilTransformDemo,
@@ -198,5 +314,9 @@ export const ANIMATION_DEMO_MOUNTERS = {
   "anim-dash-draw": mountDashDrawDemo,
   "anim-css-motion": mountCssMotionDemo,
   "anim-path-morph": mountPathMorphDemo,
-  "anim-js-motion": mountJsMotionDemo
+  "anim-js-motion": mountJsMotionDemo,
+  "anim-uniform-motion": mountUniformMotionDemo,
+  "anim-path-api": mountPathApiDemo,
+  "anim-smil-timing": mountSmilTimingDemo,
+  "anim-waapi": mountWaapiDemo
 };

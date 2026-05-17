@@ -1018,6 +1018,74 @@ export const LESSONS = [
     goal: "sampleMotionAlongPath로 rAF 엔진·편집기 preview를 만든다.",
     demo: "anim-js-motion",
     takeaways: ["sampleMotionAlongPath.", "progress by length.", "css-matrix keyframe B."]
+  },
+  {
+    id: "095",
+    part: "Part 24. Motion precision",
+    title: "uniform speed along path",
+    goal: "segment parameter t와 arc length 진행의 차이를 보고 균일 속도 샘플링을 쓴다.",
+    demo: "anim-uniform-motion",
+    takeaways: [
+      "sampleMotionAlongPathByParameter vs Uniform.",
+      "buildArcLengthLookup.",
+      "SMIL·css-matrix 051."
+    ]
+  },
+  {
+    id: "096",
+    part: "Part 24. Motion precision",
+    title: "cubic–cubic intersection",
+    goal: "두 cubic Bézier의 교차를 hull 분할·Newton으로 구하고 편집기 스냅에 쓴다.",
+    demo: "geom-curve-curve-ix",
+    takeaways: ["cubicCubicIntersections.", "control hull.", "075 보강."]
+  },
+  {
+    id: "097",
+    part: "Part 24. Motion precision",
+    title: "SVGPathElement length API",
+    goal: "getTotalLength/getPointAtLength과 core pathLength를 비교한다.",
+    demo: "anim-path-api",
+    takeaways: ["svgPathElementApiGuide.", "브라우저 vs 오프라인.", "017–018."]
+  },
+  {
+    id: "098",
+    part: "Part 24. Motion precision",
+    title: "SMIL keyTimes & keySplines",
+    goal: "animateMotion에 calcMode·keySplines로 easing을 준다.",
+    demo: "anim-smil-timing",
+    takeaways: ["SMIL_TIMING_PRESETS.", "applySmilTimingPreset.", "css-matrix easing."]
+  },
+  {
+    id: "099",
+    part: "Part 24. Motion precision",
+    title: "degree elevation Q→C",
+    goal: "quadratic을 동일 곡선의 cubic으로 올려 편집기·export 파이프를 통일한다.",
+    demo: "geom-degree-elevate",
+    takeaways: ["elevateQuadraticToCubic.", "009 Q vs C.", "Figma cubic-only."]
+  },
+  {
+    id: "100",
+    part: "Part 25. GPU mesh & WAAPI",
+    title: "triangulation with holes",
+    goal: "outer ring + hole을 bridge로 합친 뒤 ear clipping으로 fill mesh를 만든다.",
+    demo: "geom-triangulate-holes",
+    takeaways: ["triangulatePolygonWithHoles.", "hole winding.", "083 ear clip 확장."]
+  },
+  {
+    id: "101",
+    part: "Part 25. GPU mesh & WAAPI",
+    title: "WAAPI + SVG attributes",
+    goal: "Element.animate로 SVG 속성을 SMIL 없이 보간한다.",
+    demo: "anim-waapi",
+    takeaways: ["startWaapiSvgAnimation.", "waapiKeyframesForAttribute.", "088 SMIL 대안."]
+  },
+  {
+    id: "102",
+    part: "Part 25. GPU mesh & WAAPI",
+    title: "evenodd fill + triangle mesh",
+    goal: "evenodd parity와 hole triangulation을 GPU fill preview로 연결한다.",
+    demo: "geom-evenodd-pixel",
+    takeaways: ["evenoddParityFromRayCast.", "100 mesh.", "014 fill-rule."]
   }
 ];
 

@@ -12,6 +12,7 @@
     "dev": "pnpm --filter @svg-matrix-course/site dev",
     "preview": "pnpm --filter @svg-matrix-course/site preview",
     "serve:lessons": "node scripts/serve.mjs packages 4175",
-    "test": "node --test packages/svg-matrix-core/test/*.test.mjs"
+    "test": "node --test packages/svg-matrix-core/test/*.test.mjs",
+    "check:md": "node scripts/check-markdown-html.mjs"
   }
 }

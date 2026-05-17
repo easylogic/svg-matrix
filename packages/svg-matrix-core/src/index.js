@@ -1283,18 +1283,28 @@ export {
   svgArcCenterParameters,
   updateSubpathHandle,
   morphPathDLinear,
-  sampleMotionAlongPath
+  sampleMotionAlongPath,
+  buildArcLengthLookup,
+  sampleMotionAlongPathUniform,
+  sampleMotionAlongPathByParameter
 } from "./engine.js";
 
 export {
   SVG_ANIMATION_TOPIC_MAP,
+  SMIL_TIMING_PRESETS,
+  applySmilTimingPreset,
   buildAnimateMarkup,
   buildAnimateMotionMarkup,
   buildAnimateTransformMarkup,
   buildAnimatedElementMarkup,
   buildOffsetPathMotionCss,
-  strokeDashDrawKeyframes
+  strokeDashDrawKeyframes,
+  svgPathElementApiGuide,
+  waapiKeyframesForAttribute,
+  startWaapiSvgAnimation
 } from "./animation.js";
+
+export { elevateQuadraticToCubic, triangulatePolygonWithHoles } from "./geometry.js";
 
 export {
   CRISP_ICON_STROKES,

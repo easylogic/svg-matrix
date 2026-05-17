@@ -4,6 +4,7 @@ import {
   CIRCLE_CUBIC_KAPPA,
   closestPointOnCubic,
   cubicCubicIntersections,
+  elevateQuadraticToCubic,
   cubicFlatnessError,
   cubicCurvatureAt,
   earClipTriangulate,
@@ -16,9 +17,10 @@ import {
   reflectControlForSmoothContinuation,
   shoelaceArea,
   subdivideCubicBezier,
+  triangulatePolygonWithHoles,
   unitCircleQuarterCubics
 } from "../src/geometry.js";
-import { cubicBezierPoint } from "../src/index.js";
+import { cubicBezierPoint, quadraticBezierPoint } from "../src/index.js";
 
 test("subdivide cubic preserves endpoints", () => {
   const p0 = { x: 0, y: 0 };
@@ -134,6 +136,23 @@ test("cubic cubic intersection finds crossing", () => {
   assert.ok(hits.length >= 1);
 });
 
+test("triangulate polygon with hole", () => {
+  const outer = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 }
+  ];
+  const hole = [
+    { x: 25, y: 25 },
+    { x: 75, y: 25 },
+    { x: 75, y: 75 },
+    { x: 25, y: 75 }
+  ];
+  const { triangles } = triangulatePolygonWithHoles(outer, [hole]);
+  assert.ok(triangles.length >= 8);
+});
+
 test("ear clip triangulates concave polygon", () => {
   const poly = [
     { x: 0, y: 0 },
@@ -150,4 +169,17 @@ test("ear clip triangulates concave polygon", () => {
 test("curvature nonzero on bent cubic", () => {
   const k = cubicCurvatureAt({ x: 0, y: 0 }, { x: 0, y: 80 }, { x: 80, y: 80 }, { x: 80, y: 0 }, 0.5);
   assert.ok(Math.abs(k) > 0.001);
+});
+
+test("elevate quadratic matches cubic samples", () => {
+  const p0 = { x: 0, y: 0 };
+  const p1 = { x: 50, y: 100 };
+  const p2 = { x: 100, y: 0 };
+  const c = elevateQuadraticToCubic(p0, p1, p2);
+  for (let i = 0; i <= 20; i += 1) {
+    const t = i / 20;
+    const q = quadraticBezierPoint(p0, p1, p2, t);
+    const cubic = cubicBezierPoint(c.p0, c.p1, c.p2, c.p3, t);
+    assert.ok(Math.hypot(q.x - cubic.x, q.y - cubic.y) < 1e-9);
+  }
 });

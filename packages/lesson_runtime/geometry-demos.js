@@ -12,6 +12,8 @@ import {
   cubicNormalAt,
   decomposeAffineMatrix,
   earClipTriangulate,
+  triangulatePolygonWithHoles,
+  elevateQuadraticToCubic,
   evenoddParityFromRayCast,
   fanTriangulateConvex,
   gaussianKernel1D,
@@ -22,6 +24,7 @@ import {
   offsetPolyline,
   parsePathD,
   pathDFromSegments,
+  quadraticBezierPoint,
   parseSvgMatrix,
   porterDuffSourceOver,
   reflectControlForSmoothContinuation,
@@ -538,6 +541,46 @@ export function mountTriangulateDemo(canvas, toolbar, readout) {
   render();
 }
 
+export function mountTriangulateHolesDemo(canvas, toolbar, readout) {
+  const outer = [
+    { x: 120, y: 40 },
+    { x: 520, y: 40 },
+    { x: 520, y: 360 },
+    { x: 120, y: 360 }
+  ];
+  const hole = [
+    { x: 220, y: 140 },
+    { x: 420, y: 140 },
+    { x: 420, y: 260 },
+    { x: 220, y: 260 }
+  ];
+  const { triangles, mergedRing } = triangulatePolygonWithHoles(outer, [hole]);
+  const svg = document.createElementNS(svgNs(), "svg");
+  svg.setAttribute("viewBox", "0 0 640 420");
+  canvas.append(svg);
+  triangles.forEach((tri, i) => {
+    const pl = document.createElementNS(svgNs(), "polygon");
+    pl.setAttribute("points", tri.map((p) => `${p.x},${p.y}`).join(" "));
+    pl.setAttribute("fill", `rgba(37,99,235,${0.12 + (i % 4) * 0.05})`);
+    pl.setAttribute("stroke", "#93c5fd");
+    pl.setAttribute("stroke-width", "1");
+    svg.append(pl);
+  });
+  const outline = document.createElementNS(svgNs(), "polygon");
+  outline.setAttribute("points", outer.map((p) => `${p.x},${p.y}`).join(" "));
+  outline.setAttribute("fill", "none");
+  outline.setAttribute("stroke", "#1d4ed8");
+  outline.setAttribute("stroke-width", "2");
+  const holeOutline = document.createElementNS(svgNs(), "polygon");
+  holeOutline.setAttribute("points", hole.map((p) => `${p.x},${p.y}`).join(" "));
+  holeOutline.setAttribute("fill", "none");
+  holeOutline.setAttribute("stroke", "#f59e0b");
+  holeOutline.setAttribute("stroke-width", "2");
+  holeOutline.setAttribute("stroke-dasharray", "6 4");
+  svg.append(outline, holeOutline);
+  readout.textContent = `triangulatePolygonWithHoles → ${triangles.length} triangles\nbridge merged ring vertices: ${mergedRing.length}`;
+}
+
 export function mountEvenoddPixelDemo(canvas, toolbar, readout) {
   const bow = [
     { x: 200, y: 120 },
@@ -613,6 +656,48 @@ export function mountPorterDuffDemo(canvas, toolbar, readout) {
   render();
 }
 
+export function mountDegreeElevateDemo(canvas, toolbar, readout) {
+  const p0 = { x: 80, y: 140 };
+  const p1 = { x: 200, y: 30 };
+  const p2 = { x: 520, y: 140 };
+  const cubic = elevateQuadraticToCubic(p0, p1, p2);
+  const qPath = `M ${p0.x} ${p0.y} Q ${p1.x} ${p1.y} ${p2.x} ${p2.y}`;
+  const cPath = `M ${cubic.p0.x} ${cubic.p0.y} C ${cubic.p1.x} ${cubic.p1.y} ${cubic.p2.x} ${cubic.p2.y} ${cubic.p3.x} ${cubic.p3.y}`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 640 200");
+  const q = document.createElementNS(svg.namespaceURI, "path");
+  q.setAttribute("d", qPath);
+  q.setAttribute("fill", "none");
+  q.setAttribute("stroke", "#f59e0b");
+  q.setAttribute("stroke-width", "3");
+  q.setAttribute("stroke-dasharray", "8 4");
+  const c = document.createElementNS(svg.namespaceURI, "path");
+  c.setAttribute("d", cPath);
+  c.setAttribute("fill", "none");
+  c.setAttribute("stroke", "#2563eb");
+  c.setAttribute("stroke-width", "2");
+  const cp1 = document.createElementNS(svg.namespaceURI, "circle");
+  cp1.setAttribute("cx", String(cubic.p1.x));
+  cp1.setAttribute("cy", String(cubic.p1.y));
+  cp1.setAttribute("r", "5");
+  cp1.setAttribute("fill", "#93c5fd");
+  const cp2 = document.createElementNS(svg.namespaceURI, "circle");
+  cp2.setAttribute("cx", String(cubic.p2.x));
+  cp2.setAttribute("cy", String(cubic.p2.y));
+  cp2.setAttribute("r", "5");
+  cp2.setAttribute("fill", "#93c5fd");
+  svg.append(q, c, cp1, cp2);
+  canvas.append(svg);
+  let maxErr = 0;
+  for (let i = 0; i <= 40; i += 1) {
+    const t = i / 40;
+    const qp = cubicBezierPoint(p0, p1, p2, t);
+    const cp = cubicBezierPoint(cubic.p0, cubic.p1, cubic.p2, cubic.p3, t);
+    maxErr = Math.max(maxErr, Math.hypot(qp.x - cp.x, qp.y - cp.y));
+  }
+  readout.textContent = `elevateQuadraticToCubic — Q(주황)와 C(파랑) 최대 오차 ${maxErr.toExponential(2)}\ncontrol points p1·p2 표시`;
+}
+
 export function mountMathTopicMapDemo(canvas, toolbar, readout) {
   const wrap = el("div", "");
   wrap.style.fontFamily = "ui-monospace, monospace";
@@ -640,8 +725,10 @@ export const GEOMETRY_DEMO_MOUNTERS = {
   "geom-circle-cubic": mountCircleCubicDemo,
   "geom-rational-arc": mountRationalArcDemo,
   "geom-triangulate": mountTriangulateDemo,
+  "geom-triangulate-holes": mountTriangulateHolesDemo,
   "geom-evenodd-pixel": mountEvenoddPixelDemo,
   "geom-gaussian": mountGaussianBlurDemo,
   "geom-porter-duff": mountPorterDuffDemo,
-  "geom-math-map": mountMathTopicMapDemo
+  "geom-math-map": mountMathTopicMapDemo,
+  "geom-degree-elevate": mountDegreeElevateDemo
 };

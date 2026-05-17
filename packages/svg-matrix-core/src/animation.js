@@ -72,7 +72,9 @@ export function buildAnimateMotionMarkup(options) {
     rotate = "auto",
     fill = "freeze",
     keyPoints,
-    keyTimes
+    keyTimes,
+    keySplines,
+    calcMode
   } = options;
   const motionAttrs = [
     pathD && !pathId ? `path="${pathD}"` : null,
@@ -82,7 +84,9 @@ export function buildAnimateMotionMarkup(options) {
     rotate != null ? `rotate="${rotate}"` : null,
     `fill="${fill}"`,
     keyPoints != null ? `keyPoints="${keyPoints}"` : null,
-    keyTimes != null ? `keyTimes="${keyTimes}"` : null
+    keyTimes != null ? `keyTimes="${keyTimes}"` : null,
+    keySplines != null ? `keySplines="${keySplines}"` : null,
+    calcMode != null ? `calcMode="${calcMode}"` : null
   ]
     .filter(Boolean)
     .join(" ");
@@ -130,6 +134,63 @@ export function buildOffsetPathMotionCss(pathD, options = {}) {
   };
 }
 
+/** SMIL calcMode / keyTimes / keySplines presets for animateMotion */
+export const SMIL_TIMING_PRESETS = {
+  linear: { calcMode: "linear", keyTimes: "0;1", keySplines: null },
+  easeInOut: {
+    calcMode: "spline",
+    keyTimes: "0;1",
+    keySplines: "0.42 0 0.58 1"
+  },
+  easeOut: {
+    calcMode: "spline",
+    keyTimes: "0;1",
+    keySplines: "0 0 0.58 1"
+  }
+};
+
+export function applySmilTimingPreset(options, presetName = "linear") {
+  const preset = SMIL_TIMING_PRESETS[presetName] ?? SMIL_TIMING_PRESETS.linear;
+  return {
+    ...options,
+    calcMode: preset.calcMode,
+    keyTimes: options.keyTimes ?? preset.keyTimes,
+    keySplines: options.keySplines ?? preset.keySplines ?? undefined
+  };
+}
+
+/** Notes for comparing SVGPathElement native APIs vs svg-matrix-core sampling */
+export function svgPathElementApiGuide() {
+  return {
+    native: ["SVGGeometryElement.getTotalLength()", "SVGGeometryElement.getPointAtLength(distance)"],
+    core: ["pathLength(segments)", "pointAtPathLength(segments, distance)", "buildArcLengthLookup"],
+    whenToUseNative: "Browser rendering, single path node, no segment graph",
+    whenToUseCore: "Figma import, multi-subpath, editor handles, offline export"
+  };
+}
+
+/** Keyframes for WAAPI animating a single SVG attribute (camelCase DOM name). */
+export function waapiKeyframesForAttribute(attributeName, from, to) {
+  return [{ [attributeName]: from }, { [attributeName]: to }];
+}
+
+/** Start Element.animate on an SVG node (browser only). */
+export function startWaapiSvgAnimation(element, attributeName, options = {}) {
+  if (!element?.animate) {
+    throw new Error("startWaapiSvgAnimation requires a DOM element with .animate()");
+  }
+  const keyframes =
+    options.keyframes ??
+    waapiKeyframesForAttribute(attributeName, options.from, options.to);
+  return element.animate(keyframes, {
+    duration: options.duration ?? 2000,
+    iterations: options.iterations ?? Infinity,
+    easing: options.easing ?? "linear",
+    fill: options.fill ?? "none",
+    ...options.timeline
+  });
+}
+
 export const SVG_ANIMATION_TOPIC_MAP = [
   { topic: "SMIL animate attribute", lesson: "088" },
   { topic: "animateTransform", lesson: "089" },
@@ -137,5 +198,13 @@ export const SVG_ANIMATION_TOPIC_MAP = [
   { topic: "stroke dash draw-on", lesson: "091" },
   { topic: "CSS offset-path motion", lesson: "092" },
   { topic: "path morph (compatible d)", lesson: "093" },
-  { topic: "JS motion along path", lesson: "094" }
+  { topic: "JS motion along path", lesson: "094" },
+  { topic: "uniform speed / arc length LUT", lesson: "095" },
+  { topic: "cubic–cubic intersection", lesson: "096" },
+  { topic: "SVGPathElement length APIs", lesson: "097" },
+  { topic: "SMIL keyTimes / keySplines", lesson: "098" },
+  { topic: "degree elevation Q→C", lesson: "099" },
+  { topic: "triangulation with holes", lesson: "100" },
+  { topic: "WAAPI + SVG attributes", lesson: "101" },
+  { topic: "evenodd fill + mesh preview", lesson: "102" }
 ];

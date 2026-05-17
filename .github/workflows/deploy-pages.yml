@@ -39,6 +39,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Check lesson markdown (VuePress HTML)
+        run: pnpm check:md
+
       - name: Build
         run: pnpm build
 

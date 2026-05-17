@@ -55,7 +55,7 @@ Dev server: http://127.0.0.1:4175/
 | 13 | 057–061 | Figma paint gap, gradients, image, stroke align, blend |
 | 14 | 062–065 | markers, textPath, paint-order, arc flatten |
 
-**94 lessons** with live demos (000·067 Part 0, 068–087 수학, 088–094 SVG animation).
+**102 lessons** with live demos (000·067 Part 0, 068–087 수학, 088–094 animation, 095–099 motion precision, 100–102 mesh & WAAPI).
 
 - 목차: `packages/site/docs/guide/README.md`
 - 로드맵: `packages/site/docs/guide/ROADMAP.md`
