@@ -34,24 +34,48 @@ function mountPathEditorCore(canvas, options, handleApi) {
 
   const svg = document.createElementNS(svgNs(), "svg");
   svg.setAttribute("viewBox", "0 0 640 420");
+  svg.style.touchAction = "none";
   canvas.append(svg);
 
   const grid = document.createElementNS(svgNs(), "rect");
   grid.setAttribute("width", "640");
   grid.setAttribute("height", "420");
   grid.setAttribute("fill", "#f8fafc");
+  grid.setAttribute("pointer-events", "none");
 
   const path = document.createElementNS(svgNs(), "path");
   path.setAttribute("fill", "rgba(37, 99, 235, 0.12)");
   path.setAttribute("stroke", "#1d4ed8");
   path.setAttribute("stroke-width", "3");
+  path.setAttribute("pointer-events", "none");
 
   const guides = document.createElementNS(svgNs(), "g");
+  guides.setAttribute("pointer-events", "none");
   const handlesLayer = document.createElementNS(svgNs(), "g");
   svg.append(grid, path, guides, handlesLayer);
 
   let segments = pathFromD(initialD).segments;
   let activeHandle = null;
+
+  function handleHue(handle) {
+    if (handle.subpathIndex === 1) return "#7c3aed";
+    if (handle.subpathIndex === 2) return "#059669";
+    return "#2563eb";
+  }
+
+  function applyHandleStyle(circle, handle, highlightId) {
+    const active = highlightId === handle.id;
+    const hue = handleHue(handle);
+    circle.setAttribute("cx", String(handle.point.x));
+    circle.setAttribute("cy", String(handle.point.y));
+    circle.setAttribute("r", handle.kind === "anchor" ? "7" : "5");
+    circle.setAttribute("fill", active ? "#f59e0b" : handle.kind === "anchor" ? hue : "#ffffff");
+    circle.setAttribute("stroke", active ? "#b45309" : hue);
+    circle.setAttribute("stroke-width", "2");
+    circle.dataset.handleId = handle.id;
+    circle.style.pointerEvents = "all";
+    if (allowDrag) circle.style.cursor = active ? "grabbing" : "grab";
+  }
 
   function renderGuides() {
     guides.replaceChildren();
@@ -78,21 +102,39 @@ function mountPathEditorCore(canvas, options, handleApi) {
   }
 
   function renderHandles(highlightId = null) {
-    handlesLayer.replaceChildren();
     const handles = handleApi.list(segments);
+    const existing = new Map(
+      [...handlesLayer.querySelectorAll("circle[data-handle-id]")].map((node) => [
+        node.dataset.handleId,
+        node
+      ])
+    );
+
     for (const handle of handles) {
-      const circle = document.createElementNS(svgNs(), "circle");
-      circle.setAttribute("cx", String(handle.point.x));
-      circle.setAttribute("cy", String(handle.point.y));
-      circle.setAttribute("r", handle.kind === "anchor" ? "7" : "5");
-      const active = highlightId === handle.id;
-      const hue = handle.subpathIndex === 1 ? "#7c3aed" : handle.subpathIndex === 2 ? "#059669" : "#2563eb";
-      circle.setAttribute("fill", active ? "#f59e0b" : handle.kind === "anchor" ? hue : "#ffffff");
-      circle.setAttribute("stroke", active ? "#b45309" : hue);
-      circle.setAttribute("stroke-width", "2");
-      circle.dataset.handleId = handle.id;
-      if (allowDrag) circle.style.cursor = "grab";
-      handlesLayer.append(circle);
+      let circle = existing.get(handle.id);
+      if (!circle) {
+        circle = document.createElementNS(svgNs(), "circle");
+        handlesLayer.append(circle);
+      }
+      applyHandleStyle(circle, handle, highlightId);
+      existing.delete(handle.id);
+    }
+
+    for (const orphan of existing.values()) orphan.remove();
+    return handles;
+  }
+
+  function syncHandleGraphics(highlightId = null) {
+    const handles = handleApi.list(segments);
+    const circles = [...handlesLayer.querySelectorAll("circle[data-handle-id]")];
+    if (circles.length !== handles.length) {
+      renderHandles(highlightId);
+      return handles;
+    }
+    const byId = new Map(handles.map((handle) => [handle.id, handle]));
+    for (const circle of circles) {
+      const handle = byId.get(circle.dataset.handleId);
+      if (handle) applyHandleStyle(circle, handle, highlightId);
     }
     return handles;
   }
@@ -101,7 +143,11 @@ function mountPathEditorCore(canvas, options, handleApi) {
     segments = nextSegments;
     path.setAttribute("d", pathDFromSegments(segments));
     renderGuides();
-    renderHandles(activeHandle?.id ?? null);
+    if (activeHandle) {
+      syncHandleGraphics(activeHandle.id);
+    } else {
+      renderHandles();
+    }
     onChange({ segments, d: pathDFromSegments(segments), handles: handleApi.list(segments) });
   }
 
@@ -112,22 +158,30 @@ function mountPathEditorCore(canvas, options, handleApi) {
     onChange({ segments, d: pathDFromSegments(segments), handles: handleApi.list(segments) });
   }
 
+  function beginDrag(handle, event) {
+    activeHandle = handle;
+    svg.setPointerCapture(event.pointerId);
+    syncHandleGraphics(handle.id);
+    event.preventDefault();
+  }
+
   function onPointerDown(event) {
     if (!allowDrag) return;
     const point = clientToSvg(svg, event.clientX, event.clientY);
-    const hit = handleApi.hit(point, segments, 12);
+    const hit =
+      event.target?.dataset?.handleId != null
+        ? handleApi.list(segments).find((handle) => handle.id === event.target.dataset.handleId)
+        : handleApi.hit(point, segments, 12);
     if (!hit) return;
-    activeHandle = hit;
-    svg.setPointerCapture(event.pointerId);
-    renderHandles(hit.id);
-    event.preventDefault();
+    beginDrag(hit, event);
   }
 
   function onPointerMove(event) {
     const point = clientToSvg(svg, event.clientX, event.clientY);
     if (activeHandle && allowDrag) {
       commit(handleApi.update(segments, activeHandle.id, point));
-      activeHandle = handleApi.list(segments).find((handle) => handle.id === activeHandle.id) ?? null;
+      activeHandle =
+        handleApi.list(segments).find((handle) => handle.id === activeHandle.id) ?? null;
       return point;
     }
     const hit = handleApi.hit(point, segments, 12);
@@ -136,17 +190,16 @@ function mountPathEditorCore(canvas, options, handleApi) {
   }
 
   function onPointerUp(event) {
-    if (activeHandle) {
-      activeHandle = null;
-      if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
-      renderHandles();
-    }
+    if (!activeHandle) return;
+    activeHandle = null;
+    if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+    renderHandles();
   }
 
   svg.addEventListener("pointerdown", onPointerDown);
   svg.addEventListener("pointermove", onPointerMove);
   svg.addEventListener("pointerup", onPointerUp);
-  svg.addEventListener("pointerleave", onPointerUp);
+  svg.addEventListener("pointercancel", onPointerUp);
 
   render();
 

@@ -25,5 +25,6 @@ const props = defineProps({
   width: 100%;
   height: 680px;
   border: 0;
+  touch-action: none;
 }
 </style>
