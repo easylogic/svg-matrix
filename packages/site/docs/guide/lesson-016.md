@@ -7,27 +7,67 @@ demo: "path-flatten"
 
 # flatten tolerance
 
-`stepsPerCurve`로 곡선을 polyline으로 근사할 때 **얼마나 촘촘히 샘플할지**를 정합니다. step이 적으면 빠르지만 stroke·fill·bbox가 틀어질 수 있습니다.
+브라우저·편집기는 곡선 `d`를 그릴 때 내부적으로 **polyline**으로 근사합니다. `stepsPerCurve`는 “곡선 하나당 몇 개의 t 샘플을 찍을지”를 정하는 **고정 step** flatten입니다.
 
 <LessonDemo id="016" />
 
-## uniform flatten
+## 데모 path
 
-```js
-flattenPathSegments(segments, { stepsPerCurve: 12 });
+```txt
+M 80 320 Q 200 40 360 320 T 560 120
 ```
 
-`t = 0, 1/n, 2/n, …`에 `cubicBezierPoint`를 찍는 방식입니다. 구현은 단순하지만, 곡선이 급격히 휘는 구간에서는 같은 step으로는 **오차가 큽니다**.
+- 회색 stroke — 원본 path (`Q` + smooth `T`)  
+- 파란 **점** — `flattenPathSegments` 결과  
+- toolbar **stepsPerCurve** 2–48 (기본 12)  
 
-## adaptive flatten — 같은 원리, 다른 멈춤 조건
+step을 **줄이면** 점 개수↓·빠름·stroke/fill/hit **오차↑**. step을 **늘리면** 반대.
 
-[052 adaptive flatten](./lesson-052.md)과 [068 de Casteljau](./lesson-068.md)·[069 flatness](./lesson-069.md)는 한 계열입니다.
+## uniform flatten API
 
-| 강의 | 멈춤 조건 |
-|------|-----------|
-| 016 (여기) | 고정 step 수 |
-| 069 | `cubicFlatnessError` ≤ tolerance |
-| 052 | 069 + `flattenCubicAdaptive` 재귀 분할 |
+```js
+import { flattenPathSegments, parsePathD } from "svg-matrix-core";
+
+const segments = parsePathD(pathD);
+const polyline = flattenPathSegments(segments, {
+  stepsPerCurve: 12,
+  stepsPerArc: 24      // A segment → arcSegmentToCubics 후 샘플
+});
+```
+
+### segment별 동작
+
+| type | flatten |
+|------|---------|
+| `M` | 시작점 push |
+| `L` | `to` push |
+| `C` | `t = 1/n…1`에 `cubicBezierPoint` |
+| `Q` | `quadraticBezierPoint` |
+| `A` | `arcSegmentToCubics` → C 샘플 ([053](./lesson-053.md)) |
+
+```txt
+t = 0, 1/n, 2/n, …, 1  (끝점 중복 — polyline edge)
+```
+
+## 무엇이 flatten에 의존하나
+
+| 기능 | flatten 사용 |
+|------|----------------|
+| fill hit (근사) | polygon ([015](./lesson-015.md)) |
+| stroke hit (데모 일부) | polyline — 정확은 [004](./lesson-004.md) cubic |
+| `pathLength` / `pointAtPathLength` | [017](./lesson-017.md), [018](./lesson-018.md) |
+| bbox `mode: sample` | [012](./lesson-012.md) |
+| GPU mesh 전처리 | polygon → ear clip |
+
+## adaptive — 다른 멈춤 조건
+
+같은 목표(폴리라인)에 **점 개수를 줄이는** 방법:
+
+| 강의 | 멈춤 |
+|------|------|
+| **016 (여기)** | 고정 `stepsPerCurve` |
+| [069](./lesson-069.md) | chord error ≤ tolerance |
+| [052](./lesson-052.md) | `flattenPathSegmentsAdaptive` |
 
 ```js
 import { flattenPathSegmentsAdaptive } from "svg-matrix-core";
@@ -35,19 +75,26 @@ import { flattenPathSegmentsAdaptive } from "svg-matrix-core";
 flattenPathSegmentsAdaptive(segments, { tolerance: 0.5 });
 ```
 
-`flattenCubicAdaptive`는 중점이 현(chord)에서 tolerance보다 멀면 `subdivideCubicBezier`로 쪼개고 다시 시도합니다.
+급격히 휘는 구간만 촘촘히 — [068](./lesson-068.md) subdivide와 짝.
 
 ## 언제 무엇을 쓰나
 
-- **편집 중 preview** — coarse step (016 데모 슬라이더)
-- **export / hit test** — adaptive (052) 또는 해석 bbox (012, 008)
-- **motion path 균일 속도** — arc length 재매개화 ([017](./lesson-017.md), [018](./lesson-018.md); css-matrix [Motion path](https://github.com/easylogic/css-graphics-geometry) 부록)
+| 상황 | 권장 |
+|------|------|
+| 편집 중 live preview | coarse step (빠름) |
+| export / hit / length | adaptive ([052](./lesson-052.md)) 또는 해석 bbox ([008](./lesson-008.md), [009](./lesson-009.md)) |
+| motion 균일 속도 | flatten 후 length + [095](./lesson-095.md) LUT |
 
 ## Core API
 
-- `flattenPathSegments`, `flattenPathSegmentsAdaptive`
-- `cubicFlatnessError`, `subdivideCubicBezier` — [geometry.js](../../svg-matrix-core/src/geometry.js)
+- `flattenPathSegments` — `index.js`
+- `flattenPathSegmentsAdaptive`, `flattenCubicAdaptive` — `engine.js`
+- `cubicFlatnessError`, `subdivideCubicBezier` — `geometry.js`
+
+## 관련
+
+- [017](./lesson-017.md) length · [018](./lesson-018.md) point at length
 
 ## 오늘의 핵심
 
-고정 step과 adaptive flatten의 차이는 **“몇 점을 찍느냐”**가 아니라 **“언 멈추느냐”**입니다. 068–069에서 그 멈춤 조건을 수식으로 봅니다.
+고정 step vs adaptive의 차이는 “몇 점”이 아니라 **언제 멈추느냐**입니다. 016 데모 슬라이더로 오차–성능 trade-off를 눈으로 확인하세요.

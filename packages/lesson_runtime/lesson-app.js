@@ -22,6 +22,7 @@ import {
   strokeDashIntervals,
   updateSubpathHandle,
   classifyPointInPath,
+  closestPointOnCubic,
   colorToCss,
   cubicBezierPoint,
   distancePointToSegment,
@@ -277,66 +278,136 @@ rebuilt d="${pathSegmentsToD(segments)}"`;
   render();
 }
 
+function closestPointOnStrokePath(point, segments) {
+  let best = { distance: Infinity, point: { x: 0, y: 0 } };
+  for (const segment of segments) {
+    if (segment.type === "L") {
+      const start = segment.from;
+      const end = segment.to;
+      const abx = end.x - start.x;
+      const aby = end.y - start.y;
+      const len2 = abx * abx + aby * aby;
+      let t = 0;
+      if (len2 > 1e-12) {
+        t = Math.max(0, Math.min(1, ((point.x - start.x) * abx + (point.y - start.y) * aby) / len2));
+      }
+      const closest = { x: start.x + abx * t, y: start.y + aby * t };
+      const distance = Math.hypot(point.x - closest.x, point.y - closest.y);
+      if (distance < best.distance) best = { distance, point: closest };
+    } else if (segment.type === "C") {
+      const result = closestPointOnCubic(point, segment.from, segment.cp1, segment.cp2, segment.to, {
+        samples: 64
+      });
+      if (result.distance < best.distance) best = result;
+    }
+  }
+  return best;
+}
+
 function mountStrokeHitDemo(canvas, toolbar, readout) {
+  const pathD = "M 60 300 C 160 80, 480 340, 580 120";
+  const segments = parsePathD(pathD);
+
   const strokeWidth = range("strokeWidth", 2, 40, 16);
-  const hitWidth = range("hit helper", 4, 48, 24);
+  const hitWidth = range("hit helper", 4, 48, 28);
   toolbar.append(strokeWidth.wrapper, hitWidth.wrapper);
 
   const svg = document.createElementNS(svgNs(), "svg");
   svg.setAttribute("viewBox", "0 0 640 420");
+  svg.style.touchAction = "none";
   canvas.append(svg);
 
+  const hitBand = document.createElementNS(svgNs(), "path");
+  hitBand.setAttribute("d", pathD);
+  hitBand.setAttribute("fill", "none");
+  hitBand.setAttribute("stroke-linecap", "round");
+  hitBand.setAttribute("stroke-linejoin", "round");
+  hitBand.setAttribute("pointer-events", "none");
+
+  const footLine = document.createElementNS(svgNs(), "line");
+  footLine.setAttribute("stroke-width", "2");
+  footLine.setAttribute("stroke-dasharray", "6 4");
+  footLine.setAttribute("pointer-events", "none");
+
   const visible = document.createElementNS(svgNs(), "path");
-  visible.setAttribute("d", "M 60 300 C 160 80, 480 340, 580 120");
+  visible.setAttribute("d", pathD);
   visible.setAttribute("fill", "none");
   visible.setAttribute("stroke", "#0f172a");
   visible.setAttribute("stroke-linecap", "round");
+  visible.setAttribute("stroke-linejoin", "round");
+  visible.setAttribute("pointer-events", "none");
 
-  const hit = document.createElementNS(svgNs(), "path");
-  hit.setAttribute("d", visible.getAttribute("d"));
-  hit.setAttribute("fill", "none");
-  hit.setAttribute("stroke", "transparent");
-  hit.style.pointerEvents = "stroke";
+  const closestDot = document.createElementNS(svgNs(), "circle");
+  closestDot.setAttribute("r", "5");
+  closestDot.setAttribute("fill", "#fff");
+  closestDot.setAttribute("stroke", "#1d4ed8");
+  closestDot.setAttribute("stroke-width", "2");
+  closestDot.setAttribute("pointer-events", "none");
 
   const marker = document.createElementNS(svgNs(), "circle");
-  marker.setAttribute("r", "6");
-  marker.setAttribute("fill", "#ef4444");
+  marker.setAttribute("r", "7");
+  marker.setAttribute("stroke", "#fff");
+  marker.setAttribute("stroke-width", "2");
+  marker.setAttribute("pointer-events", "none");
 
-  svg.append(visible, hit, marker);
+  svg.append(hitBand, footLine, visible, closestDot, marker);
 
-  function render() {
+  let pointer = { x: 320, y: 210 };
+
+  function updateHitVisual() {
     const sw = Number(strokeWidth.input.value);
     const hw = Number(hitWidth.input.value);
+    const halfHelper = hw / 2;
+    const halfVisible = sw / 2;
+
     visible.setAttribute("stroke-width", String(sw));
-    hit.setAttribute("stroke-width", String(hw));
-    readout.textContent = `visible stroke-width=${sw}
-helper hit stroke-width=${hw}
-hit test rule: distance(point, path) <= hitWidth / 2`;
+    hitBand.setAttribute("stroke-width", String(hw));
+
+    const { distance, point: closest } = closestPointOnStrokePath(pointer, segments);
+    const hitHelper = distance <= halfHelper;
+    const hitVisible = distance <= halfVisible;
+
+    hitBand.setAttribute("stroke", hitHelper ? "rgba(34, 197, 94, 0.45)" : "rgba(239, 68, 68, 0.4)");
+    marker.setAttribute("cx", String(pointer.x));
+    marker.setAttribute("cy", String(pointer.y));
+    marker.setAttribute("fill", hitHelper ? "#16a34a" : "#dc2626");
+    closestDot.setAttribute("cx", String(closest.x));
+    closestDot.setAttribute("cy", String(closest.y));
+    footLine.setAttribute("x1", String(pointer.x));
+    footLine.setAttribute("y1", String(pointer.y));
+    footLine.setAttribute("x2", String(closest.x));
+    footLine.setAttribute("y2", String(closest.y));
+    footLine.setAttribute("stroke", hitHelper ? "#16a34a" : "#94a3b8");
+
+    readout.textContent =
+      `pointer=(${pointer.x.toFixed(1)}, ${pointer.y.toFixed(1)})\n` +
+      `closest on centerline=(${closest.x.toFixed(1)}, ${closest.y.toFixed(1)})\n` +
+      `distance d=${distance.toFixed(2)}\n` +
+      `helper band ±${halfHelper.toFixed(1)} (width ${hw}) → ${hitHelper ? "HIT" : "miss"}\n` +
+      `visible stroke ±${halfVisible.toFixed(1)} (width ${sw}) → ${hitVisible ? "on stroke" : "outside"}\n` +
+      `초록 밴드=hit helper 영역 · 검은 선=실제 stroke · 점선=d에서 수선`;
   }
 
-  canvas.addEventListener("pointermove", (event) => {
+  function pointerFromEvent(event) {
     const rect = svg.getBoundingClientRect();
-    const point = {
+    return {
       x: ((event.clientX - rect.left) / rect.width) * 640,
       y: ((event.clientY - rect.top) / rect.height) * 420
     };
-    marker.setAttribute("cx", String(point.x));
-    marker.setAttribute("cy", String(point.y));
-    const segments = parsePathMoveLine("M 60 300 L 160 80 L 480 340 L 580 120");
-    const distances = segments
-      .filter((segment) => segment.type === "L")
-      .map((segment) => distancePointToSegment(point, segment.from, segment.to));
-    const minDistance = Math.min(...distances);
-    const hitOk = minDistance <= Number(hitWidth.input.value) / 2;
-    marker.setAttribute("fill", hitOk ? "#22c55e" : "#ef4444");
-    readout.textContent = `pointer=(${point.x.toFixed(1)}, ${point.y.toFixed(1)})
-min distance to polyline=${minDistance.toFixed(2)}
-hit threshold=${(Number(hitWidth.input.value) / 2).toFixed(2)}
-${hitOk ? "HIT" : "miss"}`;
+  }
+
+  svg.addEventListener("pointermove", (event) => {
+    pointer = pointerFromEvent(event);
+    updateHitVisual();
+  });
+  svg.addEventListener("pointerdown", (event) => {
+    svg.setPointerCapture(event.pointerId);
+    pointer = pointerFromEvent(event);
+    updateHitVisual();
   });
 
-  [strokeWidth.input, hitWidth.input].forEach((input) => input.addEventListener("input", render));
-  render();
+  [strokeWidth.input, hitWidth.input].forEach((input) => input.addEventListener("input", updateHitVisual));
+  updateHitVisual();
 }
 
 function mountStrokeStyleDemo(canvas, toolbar, readout) {

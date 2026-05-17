@@ -7,39 +7,49 @@ demo: "geom-triangulate"
 
 # convex triangulation · ear clipping
 
-SVG fill을 GPU/Canvas로 그리려면 path를 **삼각형 mesh**로 바꿔야 합니다. convex는 fan, concave는 ear clipping이 고전 해법입니다.
+path fill을 **삼각형 mesh**로 — GPU/Canvas raster의 전단계입니다.
 
 <LessonDemo id="083" />
 
-## convex — fan
+## 데모에서 볼 것
 
-```js
-import { fanTriangulateConvex } from "svg-matrix-core";
+- **mode**: `convex fan` | `ear clipping`  
+- fan: 볼록 사각형 4점 → `fanTriangulateConvex`  
+- ear: **L자 오목** 6점 → `earClipTriangulate`  
+- 삼각형마다 다른 fill opacity — 개수 readout  
 
-const triangles = fanTriangulateConvex(convexPolygon);
+```txt
+fanTriangulateConvex — N triangles
+earClipTriangulate — N triangles (L-shaped concave)
 ```
 
-첫 꼭짓점을 기준으로 `(v0, vi, vi+1)` 삼각형을 쌓습니다. **오목(concave) 다각형에는 틀립니다.**
-
-## concave — ear clipping
+## API
 
 ```js
-import { earClipTriangulate } from "svg-matrix-core";
+import { fanTriangulateConvex, earClipTriangulate } from "svg-matrix-core";
 
-const triangles = earClipTriangulate(concavePolygon);
+fanTriangulateConvex(convexPolygon);
+// (v0, vi, vi+1) fan — 오목에 사용 금지
+
+earClipTriangulate(concavePolygon);
+// ear = 볼록 꼭짓점 b, (a,b,c) 안에 다른 점 없음
 ```
 
-“귀(ear)” — 볼록한 꼭짓점 `b`에서 `(a,b,c)` 삼각형 안에 다른 점이 없으면 잘라냅니다. 데모에서 L자형 polygon + `ear` 모드를 선택하세요.
+## hole
 
-## fill rule과 연결
-
-- [084 evenodd parity](./lesson-084.md) — 픽셀 규칙
-- [025–027](./lesson-025.md) — 복잡 path·hole은 libtess급 tessellator가 필요할 수 있음
+복합 영역 — [100](./lesson-100.md) `triangulatePolygonWithHoles` (bridge + ear clip).
 
 ## Core API
 
-- `fanTriangulateConvex`, `earClipTriangulate`
+| 함수 | 역할 |
+|------|------|
+| `fanTriangulateConvex` | 볼록 fan |
+| `earClipTriangulate` | 오목 ear clip |
+
+## 관련
+
+- [084](./lesson-084.md) parity · [025](./lesson-025.md)–[027](./lesson-027.md) compound
 
 ## 오늘의 핵심
 
-083은 “삼각형으로 쪼개기” 입문입니다. evenodd·hole이 있으면 subpath별 ear clip + winding 정책이 추가됩니다.
+083 = **쪼개기 입문**. hole·evenodd는 subpath·winding 정책이 추가됩니다.

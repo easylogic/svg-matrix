@@ -7,90 +7,137 @@ demo: "path-bbox"
 
 # path bounding box
 
-편집기 selection marquee, `viewBox` 자동 맞춤, export crop은 **path 전체를 덮는 axis-aligned bbox**가 필요합니다. [008](./lesson-008.md)·[009](./lesson-009.md)에서 segment 하나의 cubic/quadratic bbox를 봤다면, 이제 **여러 segment를 합치는** 방법입니다.
+편집기 selection marquee, `viewBox` 자동 맞춤, gradient `objectBoundingBox`, export crop은 **path 전체를 덮는 axis-aligned bbox**가 필요합니다. [008](./lesson-008.md)·[009](./lesson-009.md)에서 segment 하나의 tight bbox를 봤다면, 여기서는 **여러 segment를 union**합니다.
 
 <LessonDemo id="012" />
 
-## 세 가지 방법
+## 데모에서 볼 것
 
-| 방법 | API | 언제 쓰나 |
-|------|-----|-----------|
-| Control hull (전체) | `bezierControlHullBBox([p0,cp…,p3])` | 안전하지만 **느슨** — handle이 멀면 selection이 큼 |
-| Anchor만 | 끝점만 min/max | **과소 추정** — 편집기에서 흔한 실수 |
-| 해석 (권장) | `bboxOfCubicBezier` / `bboxOfQuadraticBezier` → `bboxOfPath` | C·Q segment, selection UI |
-| Flatten sample | `bboxOfPathSampled` 또는 `bboxOfPath(..., { mode: "sample" })` | 레거시·arc만 있을 때·검증용 |
+데모 path:
 
-데모에서 `exact`와 `sample`은 비슷하고, `hull`은 같은 곡선을 더 크게 덮는 경우가 보입니다. anchor만 쓰면 잘리는 이유는 코드에 `bezierControlHullBBox([p0, p3])`처럼 control을 빼면 바로 재현됩니다.
+```txt
+M 120 300 C 200 40, 440 360, 520 80
+```
 
-## segment별로 합치기
+- 파란 **stroke** + 연한 fill — cubic 한 segment  
+- 회색 **점** — `from`, `cp1`, `cp2`, `to`  
+- 주황 **점선 rect** — 선택된 bbox 모드 결과  
+
+toolbar:
+
+| mode | 동작 |
+|------|------|
+| **exact (C/Q 해석)** | `bboxOfPath` — [008](./lesson-008.md) `bboxOfCubicBezier` |
+| **control hull only** | 네 control의 AABB — 느슨한 상한 |
+| **flatten sample** | `bboxOfPathSampled` — `sample steps` 슬라이더 |
+
+readout에 `exact cubic` vs `sample(N)` 크기가 함께 나옵니다. **hull** 모드는 주황 rect가 더 큰 경우가 많고, **sample**은 step을 줄이면 **과소** bbox가 될 수 있습니다.
+
+## 반환 형식
+
+```js
+{ x, y, width, height }  // min corner + size (SVG <rect>와 동일)
+```
+
+빈 path → `{ x: 0, y: 0, width: 0, height: 0 }`.
+
+## 세 가지 방법 (복습)
+
+| 방법 | API | 특징 |
+|------|-----|------|
+| Control hull | `bezierControlHullBBox([p0, cp…, p3])` | **항상 덮음** · handle이 멀면 selection 과대 |
+| Anchor만 | `bezierControlHullBBox([p0, p3])` | **과소** — 곡선이 rect 밖으로 나감 |
+| 해석 tight | `bboxOfCubicBezier` / `bboxOfQuadraticBezier` | `B′(t)=0` + 끝점 ([008](./lesson-008.md)) |
+| Flatten sample | `bboxOfPathSampled` | step·ε에 의존 · 검증·레거시 |
+
+## `bboxOfPath` — segment union
 
 ```js
 import { bboxOfPath, bboxOfPathSampled, parsePathD } from "svg-matrix-core";
 
-const segments = parsePathD('M 120 300 C 200 40, 440 360, 520 80');
+const segments = parsePathD("M 120 300 C 200 40, 440 360, 520 80");
 
-// 기본: M/L/C/Q는 해석, A(arc)만 sampling
 const exact = bboxOfPath(segments);
+// C/Q: 해석 · A: sampleArc · L: 끝점
 
-// 예전 방식: 전부 flatten 후 min/max
 const sampled = bboxOfPath(segments, { mode: "sample", stepsPerCurve: 24 });
-// bboxOfPathSampled(segments, { stepsPerCurve: 24 }) 와 동일
+// bboxOfPathSampled와 동일 — 전 segment flatten 후 min/max
 ```
 
-`bboxOfPath` 내부는 segment type별로:
+```txt
+box = null
+for (segment of segments)
+  box = unionBBox(box, segmentBBox(segment))
+```
 
-- `L` — 끝점 min/max
-- `C` — `bboxOfCubicBezier(from, cp1, cp2, to)`
-- `Q` — `bboxOfQuadraticBezier(from, cp, to)`
-- `A` — arc를 cubic으로 쪼갠 뒤 sample (`stepsPerArc`)
+| type | `segmentBBox` |
+|------|----------------|
+| `M` | 점 하나 (width/height 0) |
+| `L` | `from`·`to` min/max |
+| `C` | `bboxOfCubicBezier` |
+| `Q` | `bboxOfQuadraticBezier` |
+| `A` | `arcSegmentToCubics` → sample (`stepsPerArc`, 기본 24) |
 
-각 segment bbox를 `union`해 path bbox를 만듭니다.
+[011](./lesson-011.md) arc는 타원 호 해석 bbox가 무겁기 때문에 **cubic sample**로 근사합니다. [065](./lesson-065.md) flatten 품질과 같은 `sampleArc` 경로.
 
-## cubic 한 segment 전체 코드 (복습)
+## `bboxOfPathSampled`
 
 ```js
-import {
-  cubicBezierExtremaTimes1D,
-  cubicBezierPolynomialCoeffs,
-  evalCubicPolynomial,
-  bboxOfCubicBezier
-} from "svg-matrix-core";
+const points = flattenPathSegments(segments, options);
+// xs/ys min/max → bbox
+```
 
-function bboxOfCubicBezier(p0, p1, p2, p3) {
-  const xC = cubicBezierPolynomialCoeffs(p0.x, p1.x, p2.x, p3.x);
-  const yC = cubicBezierPolynomialCoeffs(p0.y, p1.y, p2.y, p3.y);
-  const times = [...new Set([
-    ...cubicBezierExtremaTimes1D(p0.x, p1.x, p2.x, p3.x),
-    ...cubicBezierExtremaTimes1D(p0.y, p1.y, p2.y, p3.y)
-  ])];
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const t of times) {
-    const x = evalCubicPolynomial(xC, t);
-    const y = evalCubicPolynomial(yC, t);
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+[016](./lesson-016.md) flatten과 **동일한 polyline**에서 bbox를 구합니다. `stepsPerCurve`·`stepsPerArc`가 작으면 tight bbox보다 **작아질** 수 있습니다.
+
+## 실무 연결
+
+| 용도 | bbox + α |
+|------|----------|
+| Selection UI | `bboxOfPath` + strokeWidth/2 + handle pad |
+| Fit view / camera | compound path 전체 union |
+| `gradientUnits="objectBoundingBox"` | [019](./lesson-019.md) `objectBoundingBoxToUserSpace` |
+| Hit broad-phase | rect 겹침 후 segment test ([004](./lesson-004.md)) |
+| Transform bake | [080](./lesson-080.md) 후 `bboxOfPath` — 좌표계 통일 |
+
+### subpath
+
+`Z`로 닫힌 여러 subpath가 있어도 `bboxOfPath`는 **flat segment 리스트 전체**를 union합니다. subpath별 bbox가 필요하면 `segmentsToSubpaths` 후 각각 `bboxOfPath`.
+
+### padding
+
+```js
+function padBBox(b, px) {
+  return { x: b.x - px, y: b.y - px, width: b.width + 2 * px, height: b.height + 2 * px };
 }
 ```
 
-(실제 구현은 `packages/svg-matrix-core/src/index.js`에 export되어 있습니다.)
+## 검증 루틴
 
-## 실무 팁
+```js
+const a = bboxOfPath(segments);
+const b = bboxOfPathSampled(segments, { stepsPerCurve: 64, stepsPerArc: 48 });
+// max(|a.x-b.x|, …) < 1px 이면 sampling 파이프라인 OK
+```
 
-- **Padding**: selection UI는 `bbox`에 stroke width·handle radius만큼 `pad`를 더합니다.
-- **Arc**: 해석 bbox는 타원 호에 더 복잡합니다. 이 코스는 arc→cubic 후 sample합니다 ([065 arc flatten](./lesson-065.md)).
-- **검증**: `bboxOfPath` vs `bboxOfPathSampled(..., { stepsPerCurve: 64 })` 차이가 1px 미만이면 sampling 구현이 맞습니다.
+C/Q만 있는 path에서는 `exact`와 고 step `sample`이 거의 일치해야 합니다.
 
 ## Core API
 
-- `bboxOfPath`, `bboxOfPathSampled`
-- `bboxOfCubicBezier`, `bboxOfQuadraticBezier`
-- `bezierControlHullBBox`
+| 함수 | 역할 |
+|------|------|
+| `bboxOfPath` | C/Q 해석 + A sample union |
+| `bboxOfPathSampled` | flatten-only bbox |
+| `bboxOfCubicBezier`, `bboxOfQuadraticBezier` | segment tight |
+| `bezierControlHullBBox` | control 점 AABB |
+| `unionBBox` | 내부 (export 없음) |
+
+## 관련
+
+- [008](./lesson-008.md) C bbox · [009](./lesson-009.md) Q · [011](./lesson-011.md) A sample · [016](./lesson-016.md) flatten · [019](./lesson-019.md) gradient units
 
 ## 오늘의 핵심
 
-- tight bbox는 **B′(t)=0 극값**으로 구한다. 네 control AABB는 안전하지만 느슨하다.
-- **끝점만** bbox하면 곡선이 잘린다 — control을 반드시 포함하거나 `bboxOfCubicBezier`를 쓴다.
-- `bboxOfPath`는 C/Q를 해석으로, arc는 sample로 합친다.
-- flatten bbox는 여전히 유용하지만, step이 부족하면 **과소** 추정한다.
+- tight bbox = **극값** ([008](./lesson-008.md)); control hull은 안전하지만 느슨합니다.  
+- **끝점만** min/max하면 selection이 잘립니다.  
+- `bboxOfPath`는 C/Q 해석 + arc sample union; flatten bbox는 step이 부족하면 과소입니다.  
+- 편집기는 `bboxOfPath` + pad를 매 프레임 쓰고, arc-heavy path는 `stepsPerArc`를 키우거나 [011](./lesson-011.md) `convertArcsInPathD` 후 해석 cubic bbox를 고려하세요.

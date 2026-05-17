@@ -7,20 +7,47 @@ demo: "anim-dash-draw"
 
 # stroke dash draw-on
 
-`pathLength` + `stroke-dasharray` = 전체 길이, `stroke-dashoffset`을 0으로 애니하면 **선이 그려지는** 효과입니다. 아이콘 로딩·지도 경로 reveal에 흔합니다.
+`pathLength` + `stroke-dasharray` + CSS `@keyframes` `stroke-dashoffset`으로 **선 그리기** 효과.
 
 <LessonDemo id="091" />
 
+## 데모에서 볼 것
+
+```txt
+pathD = M 80 120 C 200 20, 440 220, 560 80
+```
+
+- `<style>` — `@keyframes` from kit  
+- path: `pathLength`, `stroke-dasharray` = length, `style` animation  
+- readout: `pathLength=…`, keyframes, style  
+
+```js
+import { strokeDashDrawKeyframes, pathLength, parsePathD } from "svg-matrix-core";
+
+const segments = parsePathD(pathD);
+const len = Math.round(pathLength(segments, { stepsPerCurve: 24 }));
+const kit = strokeDashDrawKeyframes(len, { duration: "3s" });
+// kit.pathLength, kit.keyframes, kit.style, kit.pathAttrs
+```
+
+## vs [051](./lesson-051.md)
+
+| | 051 | 091 |
+|---|-----|-----|
+| 초점 | dash phase·offset path 엔진 | **draw-on CSS kit** |
+| UI | 슬라이더 scrub | CSS animation |
+
 ## Core API
 
-`strokeDashDrawKeyframes` — `packages/svg-matrix-core/src/animation.js` 또는 `engine.js`
+| 함수 | 역할 |
+|------|------|
+| `strokeDashDrawKeyframes` | pathLength + keyframes + style |
+| `pathLength` | flatten 기반 길이 |
 
-## 관련 강의
+## 관련
 
-- [017 path length](./lesson-017.md) · [018 point at length](./lesson-018.md)
-- [051 stroke-dasharray](./lesson-051.md)
-- [063 textPath](./lesson-063.md)
+- [051](./lesson-051.md) · [017](./lesson-017.md)
 
 ## 오늘의 핵심
 
-브라우저가 재생하는 SMIL/CSS와, 편집기가 미리 계산하는 `sampleMotionAlongPath`를 구분하세요. geometry는 svg-matrix, timeline·easing은 css-matrix 부록 B가 담당합니다.
+draw-on = **dasharray = pathLength**, offset 0→length. length를 먼저 맞춥니다.

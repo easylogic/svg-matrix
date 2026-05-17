@@ -7,19 +7,40 @@ demo: "geom-curve-curve-ix"
 
 # cubic–cubic intersection
 
-두 cubic Bézier가 만나는 지점은 벡터 편집기의 **스냅·교차 마커**에 쓰입니다. control hull로 후보 구간을 줄인 뒤 세분·Newton으로 정밀화합니다.
+두 cubic Bézier의 **교차점** — hull 분할 + refinement. [075](./lesson-075.md) 보강·편집기 스냅.
 
 <LessonDemo id="096" />
 
+## 데모에서 볼 것
+
+- 두 cubic path — 교차 영역  
+- readout: 교차점 좌표 목록 (데모 `geom-curve-curve-ix`)  
+- control hull로 broad-phase 후 subdivision  
+
+```js
+import { cubicCubicIntersections } from "svg-matrix-core";
+
+cubicCubicIntersections(curveA, curveB, { tolerance: 1e-3 });
+// [{ point, tA, tB }, …]
+```
+
+## vs [075](./lesson-075.md)
+
+| | 075 | 096 |
+|---|-----|-----|
+| 초점 | line∩cubic, 개념 | **cubic∩cubic** 전용 |
+| 용도 | trim preview | handle snap·boolean 전처리 |
+
 ## Core API
 
-`cubicCubicIntersections` — `packages/svg-matrix-core/src/geometry.js`
+| 함수 | 역할 |
+|------|------|
+| `cubicCubicIntersections` | 교차점 배열 |
 
-## 관련 강의
+## 관련
 
-- [075 line & curve intersection](./lesson-075.md)
-- [068 subdivide](./lesson-068.md) · [008 cubic bbox](./lesson-008.md)
+- [074](./lesson-074.md) segment · [027](./lesson-027.md) self-intersect
 
 ## 오늘의 핵심
 
-curve–curve는 line–cubic보다 후보가 많습니다. hull 분할 없이 전 구간을 훑으면 비용이 큽니다. 데모에서 두 곡선을 드래그하며 교차 개수 변화를 관찰하세요.
+곡선∩곡선은 **무한히 촘촘히 샘플하면 안 됨** — hull 분할이 비용·정확도 균형입니다.
